@@ -56,10 +56,18 @@ macos_pure_unusernotification_center = []
 color-backtrace = "0.7" # wait for MSVR 1.70 to update
 ctor = "0.12"
 maplit = "1.0"
+oslog = "0.2"
+log = "0.4"
 
 [dev-dependencies.async-std]
 version = "1.12.0"
 features = ["attributes"]
+
+[package.metadata.bundle]
+name = "notify-rust-example"
+identifier = "de.hoodie.notify-rust.example"
+version = "0.1.0"
+short_description = "notify-rust example"
 
 [[example]]
 name = "images"

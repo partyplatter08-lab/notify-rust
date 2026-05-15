@@ -1,139 +1,70 @@
 #![allow(missing_docs)]
-use crate::{
-    error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason, Timeout,
-};
+use crate::{error::*, notification::Notification, CloseHandler, CloseReason, Timeout};
 
 pub use mac_notification_sys::error::{ApplicationError, Error as MacOsError, NotificationError};
 use mac_notification_sys::un::{self, NotificationResponse as UnNotificationResponse};
 
-use std::{
-    ops::{Deref, DerefMut},
-    time::Duration,
-};
+use std::{ops::Deref, time::Duration};
 
-///  A handle to a shown notification.
+// ── NotificationHandle ────────────────────────────────────────────────────────
+
+/// A handle carrying the user's response to an actionable notification.
+///
+/// Produced **exclusively** by [`Notification::show_and_wait_async`] after the
+/// user has interacted with (or dismissed) the notification.  Because the
+/// response is always present and non-optional, calling
+/// [`wait_for_action`][Self::wait_for_action] or [`on_close`][Self::on_close]
+/// never blocks and cannot silently no-op.
+///
+/// Fire-and-forget notifications (`show` / `show_async`) return `()` — if
+/// there is nothing to observe, there is nothing to hold.
 #[derive(Debug)]
 pub struct NotificationHandle {
     notification: Notification,
-    /// Response captured by [`show_notification`] / [`show_notification_async`]
-    /// via `UNUserNotificationCenter`. `Some` once the user has interacted;
-    /// `None` only for handles created by the legacy `macos_legacy` path before
-    /// `wait_for_action` / `on_close` has been called.
-    un_response: Option<UnNotificationResponse>,
-}
-
-impl From<(Notification, Option<UnNotificationResponse>)> for NotificationHandle {
-    fn from(
-        (notification, un_response): (Notification, Option<UnNotificationResponse>),
-    ) -> NotificationHandle {
-        NotificationHandle {
-            notification,
-            un_response,
-        }
-    }
+    response: UnNotificationResponse,
 }
 
 impl NotificationHandle {
-    #[allow(missing_docs)]
-    pub fn new(notification: Notification) -> NotificationHandle {
-        NotificationHandle {
+    fn new(notification: Notification, response: UnNotificationResponse) -> Self {
+        Self {
             notification,
-            un_response: None,
+            response,
         }
     }
 
+    /// Call `invocation_closure` with the identifier of the activated action.
+    ///
+    /// Maps the captured response to a string:
+    /// - body click (default action) → first configured identifier, or `"__closed"`
+    /// - dismiss                      → `"__closed"`
+    /// - reply action                 → the text typed by the user
+    /// - any other action             → the action identifier set by the caller
     pub fn wait_for_action<F>(self, invocation_closure: F)
     where
         F: FnOnce(&str),
     {
-        let identifier = if let Some(ref resp) = self.un_response {
-            // Fast path: response already captured by show_notification.
-            un_response_to_identifier(resp, self.first_identifier())
-        } else {
-            // `un_response` is None (legacy path): send via the UN API now,
-            // always using send_with_actions so that close/dismiss events are
-            // observable even for notifications without explicit action buttons.
-            let first_id = self.first_identifier().map(str::to_owned);
-            let un_notification: un::Notification = (&self.notification).into();
-            match un::send_with_actions_blocking(un_notification) {
-                Ok(resp) => un_response_to_identifier(&resp, first_id.as_deref()),
-                Err(_) => "__closed".to_owned(),
-            }
-        };
-        invocation_closure(&identifier);
+        let first_id = self.notification.actions.first().map(String::as_str);
+        invocation_closure(&un_response_to_identifier(&self.response, first_id));
     }
 
-    /// Async variant of [`wait_for_action`][Self::wait_for_action].
+    /// Execute `handler` now that the notification has been acted on.
     ///
-    /// Delivers the notification (if not yet delivered) using the
-    /// `UNUserNotificationCenter` async API and `await`s the user's response.
-    /// The closure is called with the action identifier once the user acts,
-    /// or with `"__closed"` if the notification was dismissed without
-    /// interaction.
-    ///
-    /// Unlike the old thread-based variant, no background thread is spawned;
-    /// the work is driven by the caller's async executor.
-    pub async fn wait_for_action_async<F>(self, invocation_closure: F)
-    where
-        F: FnOnce(&str),
-    {
-        let identifier = if let Some(ref resp) = self.un_response {
-            // Fast path: response already captured by show_notification_async.
-            un_response_to_identifier(resp, self.first_identifier())
-        } else {
-            // `un_response` is None (legacy path): send via the UN API now,
-            // always using send_with_actions so that close/dismiss events are
-            // observable even for notifications without explicit action buttons.
-            let first_id = self.first_identifier().map(str::to_owned);
-            let un_notification: un::Notification = (&self.notification).into();
-            match un::send_with_actions(un_notification).await {
-                Ok(resp) => un_response_to_identifier(&resp, first_id.as_deref()),
-                Err(_) => "__closed".to_owned(),
-            }
-        };
-        invocation_closure(&identifier);
-    }
-
+    /// On macOS the close reason is always [`CloseReason::Dismissed`]; the
+    /// underlying framework does not distinguish dismiss from expiry.
     pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
-        // If the UN path already delivered the notification and captured
-        // the response, there's nothing more to do — just call the handler.
-        // Otherwise (legacy path) send now, capturing the close event via
-        // send_with_actions regardless of whether action buttons are present.
-        if self.un_response.is_none() {
-            let un_notification: un::Notification = (&self.notification).into();
-            let _ = un::send_with_actions_blocking(un_notification);
-        }
         handler.call(CloseReason::Dismissed);
-    }
-
-    fn first_identifier(&self) -> Option<&str> {
-        self.notification.actions.first().map(String::as_str)
     }
 }
 
 impl Deref for NotificationHandle {
     type Target = Notification;
-
     fn deref(&self) -> &Notification {
         &self.notification
     }
 }
 
-/// Allow to easily modify notification properties
-impl DerefMut for NotificationHandle {
-    fn deref_mut(&mut self) -> &mut Notification {
-        &mut self.notification
-    }
-}
+// ── Shared helpers ────────────────────────────────────────────────────────────
 
-/// Map a [`UnNotificationResponse`] to the `&str` identifier that
-/// `wait_for_action` passes to its closure.
-///
-/// Mirrors the mapping used by the blocking path:
-/// * default action (body click)  → first configured identifier, or `"__closed"`
-/// * dismiss                       → `"__closed"`
-/// * reply action                  → the text typed by the user
-/// * any other action              → the action identifier set by the caller
 fn un_response_to_identifier(resp: &UnNotificationResponse, first_id: Option<&str>) -> String {
     if resp.is_default_action() {
         first_id.map_or_else(|| "__closed".to_owned(), str::to_owned)
@@ -147,39 +78,36 @@ fn un_response_to_identifier(resp: &UnNotificationResponse, first_id: Option<&st
 }
 
 impl From<&Notification> for un::Notification {
-    fn from(notification: &Notification) -> Self {
-        use mac_notification_sys::un;
+    fn from(n: &Notification) -> Self {
+        let mut un = un::Notification::new()
+            .title(&n.summary)
+            .message(&n.body);
 
-        let mut un_notification = un::Notification::new()
-            .title(&notification.summary)
-            .message(&notification.body);
-
-        if let Some(ref subtitle) = notification.subtitle {
-            un_notification = un_notification.subtitle(subtitle);
+        if let Some(ref subtitle) = n.subtitle {
+            un = un.subtitle(subtitle);
         }
-
-        if let Some(ref sound_name) = notification.sound_name {
-            un_notification = un_notification.sound(sound_name);
+        if let Some(ref sound_name) = n.sound_name {
+            un = un.sound(sound_name);
         }
-
-        for chunk in notification.actions.chunks(2) {
+        for chunk in n.actions.chunks(2) {
             if let (Some(id), Some(label)) = (chunk.first(), chunk.get(1)) {
-                un_notification = un_notification.action(un::Action::new(id, label));
+                un = un.action(un::Action::new(id, label));
             }
         }
-
-        // Forward a millisecond timeout from notify-rust to the UN layer so that
-        // the future doesn't block indefinitely when the notification is cleared
-        // without interaction (e.g. "Clear All" in Notification Center).
-        if let Timeout::Milliseconds(ms) = notification.timeout {
-            un_notification = un_notification.timeout(Duration::from_millis(ms as u64));
+        if let Timeout::Milliseconds(ms) = n.timeout {
+            un = un.timeout(Duration::from_millis(ms as u64));
         }
-        un_notification
+        un
     }
 }
 
+// ── Back-end functions ────────────────────────────────────────────────────────
+
+/// Send a fire-and-forget notification via the legacy `NSUserNotificationCenter`
+/// API (deprecated macOS ≤ 13, removed macOS 14).  Prefer
+/// [`show_notification_async`] on modern systems.
 #[cfg(not(feature = "macos_pure_unusernotification_center"))]
-pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
+pub(crate) fn show_notification(notification: &Notification) -> Result<()> {
     let mut n = mac_notification_sys::Notification::default();
     n.title(notification.summary.as_str())
         .message(&notification.body)
@@ -189,40 +117,44 @@ pub(crate) fn show_notification(notification: &Notification) -> Result<Notificat
     if let Some(ref image_path) = notification.path_to_image {
         n.content_image(image_path);
     }
-
     n.send()?;
-
-    Ok(NotificationHandle::new(notification.clone()))
+    Ok(())
 }
 
+/// Send a fire-and-forget notification via `UNUserNotificationCenter`
+/// (synchronous wrapper, `macos_pure_unusernotification_center` feature).
 #[cfg(feature = "macos_pure_unusernotification_center")]
-pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
-    use mac_notification_sys::un;
-    let un_notification: un::Notification = notification.into();
-    // Always use send_with_actions_blocking so that a response handler is
-    // registered for every notification — close/dismiss events are then
-    // observable even when no explicit action buttons are configured.
-    let resp = un::send_with_actions_blocking(un_notification)?;
-    Ok(NotificationHandle::from((notification.clone(), Some(resp))))
+pub(crate) fn show_notification(notification: &Notification) -> Result<()> {
+    un::send_blocking(notification.into())?;
+    Ok(())
 }
 
+/// Send a notification via `UNUserNotificationCenter` and wait for the user
+/// to respond.
+///
+/// For notifications **with** action buttons the user must click one (or
+/// dismiss with a swipe).  For notifications **without** action buttons a
+/// synthetic category is registered internally so that swipe-to-dismiss also
+/// delivers a response — the notification looks identical to a fire-and-forget
+/// banner but its lifecycle is still fully observable.
+///
+/// Returns a [`NotificationHandle`] whose [`wait_for_action`] / [`on_close`]
+/// methods never block — the response is already captured by the time this
+/// future resolves.
+///
+/// The future resolves to `Err(`[`un::Error::ResponseTimeout`]`)` if a timeout
+/// was configured on the notification and the deadline passes.
+///
+/// [`wait_for_action`]: NotificationHandle::wait_for_action
+/// [`on_close`]: NotificationHandle::on_close
 pub(crate) async fn show_notification_async(
     notification: &Notification,
 ) -> Result<NotificationHandle> {
-    use mac_notification_sys::un;
-    let un_notification: un::Notification = notification.into();
-    // Always use send_with_actions so that a response handler is registered
-    // for every notification — close/dismiss events are then observable even
-    // when no explicit action buttons are configured.  The caller may drop
-    // the returned handle (and its captured response) if they do not care.
-    let resp = un::send_with_actions(un_notification).await?;
-    Ok(NotificationHandle::from((notification.clone(), Some(resp))))
+    let resp = un::send_with_actions(notification.into()).await?;
+    Ok(NotificationHandle::new(notification.clone(), resp))
 }
 
-pub(crate) fn schedule_notification(
-    notification: &Notification,
-    delivery_date: f64,
-) -> Result<NotificationHandle> {
+pub(crate) fn schedule_notification(notification: &Notification, delivery_date: f64) -> Result<()> {
     let mut n = mac_notification_sys::Notification::default();
     n.title(notification.summary.as_str())
         .message(&notification.body)
@@ -233,8 +165,6 @@ pub(crate) fn schedule_notification(
     if let Some(ref image_path) = notification.path_to_image {
         n.content_image(image_path);
     }
-
     n.send()?;
-
-    Ok(NotificationHandle::new(notification.clone()))
+    Ok(())
 }

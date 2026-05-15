@@ -435,7 +435,7 @@ impl Notification {
     pub fn schedule<T: chrono::TimeZone>(
         &self,
         delivery_date: chrono::DateTime<T>,
-    ) -> Result<macos::NotificationHandle> {
+    ) -> Result<()> {
         macos::schedule_notification(self, delivery_date.timestamp() as f64)
     }
 
@@ -445,7 +445,7 @@ impl Notification {
     /// This is a raw `f64`, if that is a bit too raw for you please activate the feature `"chrono"`,
     /// then you can use `Notification::schedule()` instead, which accepts a `chrono::DateTime<T>`.
     #[cfg(target_os = "macos")]
-    pub fn schedule_raw(&self, timestamp: f64) -> Result<macos::NotificationHandle> {
+    pub fn schedule_raw(&self, timestamp: f64) -> Result<()> {
         macos::schedule_notification(self, timestamp)
     }
 
@@ -481,15 +481,32 @@ impl Notification {
     ///
     /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
     /// the notification.
+    /// Send a fire-and-forget notification via `NSUserNotificationCenter`
+    /// (deprecated) or `UNUserNotificationCenter`.
     #[cfg(target_os = "macos")]
-    pub fn show(&self) -> Result<macos::NotificationHandle> {
+    pub fn show(&self) -> Result<()> {
         macos::show_notification(self)
     }
 
-    /// Sends Notification to `NSUserNotificationCenter`.
+    // /// Send a fire-and-forget notification via `UNUserNotificationCenter`
+    // /// asynchronously.
+    // #[cfg(target_os = "macos")]
+    // pub async fn show_async(&self) -> Result<()> {
+    //     macos::show_notification_async(self).await
+    // }
+
+    /// Send an actionable notification and wait for the user to respond.
     ///
-    /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
-    /// the notification.
+    /// Returns a [`NotificationHandle`][macos::NotificationHandle] with the
+    /// user's response already captured.  Calling
+    /// [`wait_for_action`][macos::NotificationHandle::wait_for_action] or
+    /// [`on_close`][macos::NotificationHandle::on_close] on the returned
+    /// handle never blocks.
+    ///
+    /// The main thread must be pumping `NSRunLoop` while this future is
+    /// awaited — use [`block_on_main`][mac_notification_sys::un::block_on_main]
+    /// for CLI tools, or call this from within a Tokio task while the main
+    /// thread runs [`run_main_loop_while`][mac_notification_sys::un::run_main_loop_while].
     #[cfg(target_os = "macos")]
     pub async fn show_async(&self) -> Result<macos::NotificationHandle> {
         macos::show_notification_async(self).await
