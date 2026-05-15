@@ -32,6 +32,7 @@ impl From<(Notification, Option<UnNotificationResponse>)> for NotificationHandle
         }
     }
 }
+
 impl NotificationHandle {
     #[allow(missing_docs)]
     pub fn new(notification: Notification) -> NotificationHandle {
@@ -104,16 +105,6 @@ impl NotificationHandle {
         }
         handler.call(CloseReason::Dismissed);
     }
-
-    // fn identifier_for_label(&self, label: &str) -> Option<&str> {
-    //     self.notification
-    //         .actions
-    //         .chunks(2)
-    //         .find_map(|chunk| match (chunk.first(), chunk.get(1)) {
-    //             (Some(id), Some(lbl)) if lbl == label => Some(id.as_str()),
-    //             _ => None,
-    //         })
-    // }
 
     fn first_identifier(&self) -> Option<&str> {
         self.notification.actions.first().map(String::as_str)

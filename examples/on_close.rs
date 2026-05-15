@@ -10,15 +10,23 @@ fn wait_for_keypress() {
 
 fn print() {
     println!("notification was closed, don't know why");
+    Notification::new()
+        .summary("done")
+        .body("notification was closed, don't know why")
+        .show()
+        .unwrap();
 }
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(target_os = "windows")]
 fn main() {
     println!("this is a xdg only feature")
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(unix)]
 fn main() {
+    #[cfg(target_os = "macos")]
+    notify_rust::request_auth_blocking().unwrap();
+
     thread::spawn(|| {
         Notification::new()
             .summary("Time is running out")
