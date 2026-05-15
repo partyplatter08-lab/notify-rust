@@ -490,6 +490,15 @@ impl Notification {
     ///
     /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
     /// the notification.
+    #[cfg(target_os = "macos")]
+    pub async fn show_async(&self) -> Result<macos::NotificationHandle> {
+        macos::show_notification_async(self).await
+    }
+
+    /// Sends Notification to `NSUserNotificationCenter`.
+    ///
+    /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
+    /// the notification.
     #[cfg(target_os = "windows")]
     pub fn show(&self) -> Result<()> {
         windows::show_notification(self)

@@ -31,6 +31,9 @@ pub enum ErrorKind {
     #[cfg(target_os = "macos")]
     MacNotificationSys(mac_notification_sys::error::Error),
 
+    #[cfg(target_os = "macos")]
+    UnUserNotificationError(mac_notification_sys::un::Error),
+
     Parse(num::ParseIntError),
 
     SpecVersion(String),
@@ -54,6 +57,9 @@ impl fmt::Display for Error {
 
             #[cfg(target_os = "macos")]
             ErrorKind::MacNotificationSys(ref e) => write!(f, "{e}"),
+
+            #[cfg(target_os = "macos")]
+            ErrorKind::UnUserNotificationError(ref e) => write!(f, "{e}"),
 
             ErrorKind::Parse(ref e) => write!(f, "Parsing Error: {e}"),
             ErrorKind::Conversion(ref e) => write!(f, "Conversion Error: {e}"),
@@ -101,6 +107,15 @@ impl From<mac_notification_sys::error::Error> for Error {
     fn from(e: mac_notification_sys::error::Error) -> Error {
         Error {
             kind: ErrorKind::MacNotificationSys(e),
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl From<mac_notification_sys::un::Error> for Error {
+    fn from(e: mac_notification_sys::un::Error) -> Error {
+        Error {
+            kind: ErrorKind::UnUserNotificationError(e),
         }
     }
 }
