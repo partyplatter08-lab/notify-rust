@@ -1,3 +1,5 @@
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+use crate::NotificationHandle;
 #[cfg(all(unix, not(target_os = "macos")))]
 use crate::{
     hints::{CustomHintType, Hint},
@@ -431,11 +433,22 @@ impl Notification {
     /// Schedules a Notification
     ///
     /// Sends a Notification at the specified date.
+    #[cfg(all(target_os = "macos", feature = "chrono"))]
+    pub fn schedule<T: chrono::TimeZone>(
+        &self,
+        delivery_date: chrono::DateTime<T>,
+    ) -> Result<macos::NotificationHandle> {
+        todo!("scheduling is not yet implemented by mac-usernotificaitons")
+    }
+
+    /// Schedules a Notification
+    ///
+    /// Sends a Notification at the specified date.
     #[cfg(all(target_os = "macos", feature = "chrono", not(feature = "pure_usernotifications")))]
     pub fn schedule<T: chrono::TimeZone>(
         &self,
         delivery_date: chrono::DateTime<T>,
-    ) -> Result<()> {
+    ) -> Result<macos::NotificationHandle> {
         macos::schedule_notification(self, delivery_date.timestamp() as f64)
     }
 
@@ -445,8 +458,8 @@ impl Notification {
     /// This is a raw `f64`, if that is a bit too raw for you please activate the feature `"chrono"`,
     /// then you can use `Notification::schedule()` instead, which accepts a `chrono::DateTime<T>`.
     #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
-    pub fn schedule_raw(&self, timestamp: f64) -> Result<()> {
-        macos::schedule_notification(self, timestamp)
+    pub fn schedule_raw(&self, timestamp: f64) -> Result<NotificationHandle> {
+        macos::schedule_notification(self, timestamp)?;
     }
 
     /// Sends Notification to D-Bus.
@@ -484,7 +497,7 @@ impl Notification {
     /// Send a fire-and-forget notification via `NSUserNotificationCenter`
     /// (deprecated) or `UNUserNotificationCenter`.
     #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
-    pub fn show(&self) -> Result<macos::NotificationHandle> {
+    pub fn show(&self) -> Result<macos::legacy::NotificationHandle> {
         macos::show_notification(self)
     }
 

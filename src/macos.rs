@@ -1,89 +1,81 @@
 #![allow(missing_docs)]
+
+/// Items that belong exclusively to the legacy `NSUserNotificationCenter` path.
 #[cfg(not(feature = "pure_usernotifications"))]
-use crate::{error::*, notification::Notification};
+pub mod legacy {
+    use crate::{error::*, notification::Notification};
+    use std::ops::{Deref, DerefMut};
 
-#[cfg(not(feature = "pure_usernotifications"))]
-pub use mac_notification_sys::error::{ApplicationError, Error as MacOsError, NotificationError};
+    pub use mac_notification_sys::error::{
+        ApplicationError, Error as MacOsError, NotificationError,
+    };
 
-#[cfg(not(feature = "pure_usernotifications"))]
-use std::ops::{Deref, DerefMut};
-
-/// A handle to a shown notification.
-///
-/// This keeps a connection alive to ensure actions work on certain desktops.
-#[cfg(not(feature = "pure_usernotifications"))]
-#[derive(Debug)]
-pub struct NotificationHandle {
-    notification: Notification,
-}
-
-#[cfg(not(feature = "pure_usernotifications"))]
-impl NotificationHandle {
-    #[allow(missing_docs)]
-    pub fn new(notification: Notification) -> NotificationHandle {
-        NotificationHandle { notification }
-    }
-}
-
-#[cfg(not(feature = "pure_usernotifications"))]
-impl Deref for NotificationHandle {
-    type Target = Notification;
-
-    fn deref(&self) -> &Notification {
-        &self.notification
-    }
-}
-
-/// Allow to easily modify notification properties
-#[cfg(not(feature = "pure_usernotifications"))]
-impl DerefMut for NotificationHandle {
-    fn deref_mut(&mut self) -> &mut Notification {
-        &mut self.notification
-    }
-}
-
-#[cfg(not(feature = "pure_usernotifications"))]
-pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
-    let mut n = mac_notification_sys::Notification::default();
-    n.title(notification.summary.as_str())
-        .message(&notification.body)
-        .maybe_subtitle(notification.subtitle.as_deref())
-        .maybe_sound(notification.sound_name.as_deref());
-
-    if let Some(ref image_path) = notification.path_to_image {
-        n.content_image(image_path);
+    /// A handle to a shown notification.
+    ///
+    /// This keeps a connection alive to ensure actions work on certain desktops.
+    #[derive(Debug)]
+    pub struct NotificationHandle {
+        notification: Notification,
     }
 
-    n.send()?;
-
-    Ok(NotificationHandle::new(notification.clone()))
-}
-
-#[cfg(not(feature = "pure_usernotifications"))]
-pub(crate) fn schedule_notification(
-    notification: &Notification,
-    delivery_date: f64,
-) -> Result<NotificationHandle> {
-    let mut n = mac_notification_sys::Notification::default();
-    n.title(notification.summary.as_str())
-        .message(&notification.body)
-        .maybe_subtitle(notification.subtitle.as_deref())
-        .maybe_sound(notification.sound_name.as_deref())
-        .delivery_date(delivery_date);
-
-    if let Some(ref image_path) = notification.path_to_image {
-        n.content_image(image_path);
+    impl NotificationHandle {
+        #[allow(missing_docs)]
+        pub fn new(notification: Notification) -> NotificationHandle {
+            NotificationHandle { notification }
+        }
     }
 
-    n.send()?;
+    impl Deref for NotificationHandle {
+        type Target = Notification;
 
-    Ok(NotificationHandle::new(notification.clone()))
+        fn deref(&self) -> &Notification {
+            &self.notification
+        }
+    }
+
+    /// Allow to easily modify notification properties
+    impl DerefMut for NotificationHandle {
+        fn deref_mut(&mut self) -> &mut Notification {
+            &mut self.notification
+        }
+    }
+
+    pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
+        let mut n = mac_notification_sys::Notification::default();
+        n.title(notification.summary.as_str())
+            .message(&notification.body)
+            .maybe_subtitle(notification.subtitle.as_deref())
+            .maybe_sound(notification.sound_name.as_deref());
+
+        if let Some(ref image_path) = notification.path_to_image {
+            n.content_image(image_path);
+        }
+
+        n.send()?;
+
+        Ok(NotificationHandle::new(notification.clone()))
+    }
+
+    pub(crate) fn schedule_notification(
+        notification: &Notification,
+        delivery_date: f64,
+    ) -> Result<NotificationHandle> {
+        let mut n = mac_notification_sys::Notification::default();
+        n.title(notification.summary.as_str())
+            .message(&notification.body)
+            .maybe_subtitle(notification.subtitle.as_deref())
+            .maybe_sound(notification.sound_name.as_deref())
+            .delivery_date(delivery_date);
+
+        if let Some(ref image_path) = notification.path_to_image {
+            n.content_image(image_path);
+        }
+
+        n.send()?;
+
+        Ok(NotificationHandle::new(notification.clone()))
+    }
 }
-
-#[cfg(feature = "pure_usernotifications")]
-pub(crate) use pure_usernotifications::show_notification;
-#[cfg(feature = "pure_usernotifications")]
-pub(crate) use pure_usernotifications::show_notification_async;
 
 /// Items that belong exclusively to the `pure_usernotifications` path
 /// (`UNUserNotificationCenter`).
@@ -97,7 +89,7 @@ pub mod pure_usernotifications {
 
     pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
 
-    /// A handle to a shown notification (`UNUserNotificationCenter` path).
+    /// A handle to a shown notification (UNUserNotificationCenter path).
     #[derive(Debug)]
     pub struct NotificationHandle {
         notification: Notification,
@@ -207,3 +199,13 @@ pub mod pure_usernotifications {
         Ok(NotificationHandle::new(notification.clone(), resp))
     }
 }
+
+#[cfg(not(feature = "pure_usernotifications"))]
+pub(crate) use legacy::schedule_notification;
+#[cfg(not(feature = "pure_usernotifications"))]
+pub(crate) use legacy::show_notification;
+
+#[cfg(feature = "pure_usernotifications")]
+pub(crate) use pure_usernotifications::show_notification;
+#[cfg(feature = "pure_usernotifications")]
+pub(crate) use pure_usernotifications::show_notification_async;
