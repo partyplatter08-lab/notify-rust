@@ -116,6 +116,8 @@
 //! | `fn get_server_information(...)`           | ✔︎   |   ❌ |  ❌    |
 //! | `fn set_application(...)`                  | ❌  |   ✔︎  |  ❌    |
 //! | `fn get_bundle_identifier_or_default(...)` | ❌  |   ✔︎  |  ❌    |
+//! | `fn request_auth(...)`                     | ❌  |   ✔︎  |  ❌    |
+//! | `fn request_auth_blocking(...)`            | ❌  |   ✔︎  |  ❌    |
 //!
 //!
 //! ### Toggles
@@ -151,7 +153,7 @@
 #[cfg(all(feature = "dbus", unix, not(target_os = "macos")))]
 extern crate dbus;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
 extern crate mac_notification_sys;
 
 #[cfg(target_os = "windows")]
@@ -183,11 +185,10 @@ mod image;
 
 pub use crate::action::{ActionResponse, ActionResponseHandler, CloseHandler, CloseReason};
 
-#[cfg(target_os = "macos")]
-pub use mac_notification_sys::{
-    get_bundle_identifier_or_default, set_application,
-    un::{request_auth, request_auth_blocking},
-};
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};
+#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+pub use macos::{request_auth, request_auth_blocking};
 
 #[cfg(target_os = "macos")]
 pub use macos::NotificationHandle;

@@ -1,4 +1,4 @@
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
 fn main() -> Result<(), String> {
     use notify_rust::{
         error::MacOsError, get_bundle_identifier_or_default, set_application, Notification,

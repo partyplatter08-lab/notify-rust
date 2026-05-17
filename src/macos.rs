@@ -3,9 +3,15 @@ use crate::{
     error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason, Timeout,
 };
 
+#[cfg(not(feature = "pure_usernotifications"))]
 pub use mac_notification_sys::error::{ApplicationError, Error as MacOsError, NotificationError};
-use mac_notification_sys::un;
+
 use mac_usernotifications::{NotificationResponse, Sound};
+#[cfg(not(feature = "pure_usernotifications"))]
+use mac_usernotifications::{NotificationResponse, Sound};
+
+#[cfg(feature = "pure_usernotifications")]
+pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
 
 use std::{ops::Deref, time::Duration};
 
@@ -83,28 +89,6 @@ fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse<'_
     }
 }
 
-impl From<&Notification> for un::Notification {
-    fn from(n: &Notification) -> Self {
-        let mut un = un::Notification::new().title(&n.summary).message(&n.body);
-
-        if let Some(ref subtitle) = n.subtitle {
-            un = un.subtitle(subtitle);
-        }
-        if let Some(ref sound_name) = n.sound_name {
-            un = un.sound(sound_name);
-        }
-        for chunk in n.actions.chunks(2) {
-            if let (Some(id), Some(label)) = (chunk.first(), chunk.get(1)) {
-                un = un.action(un::Action::new(id, label));
-            }
-        }
-        if let Timeout::Milliseconds(ms) = n.timeout {
-            un = un.timeout(Duration::from_millis(ms as u64));
-        }
-        un
-    }
-}
-
 impl From<&Notification> for mac_usernotifications::Notification {
     fn from(n: &Notification) -> Self {
         let mut un = mac_usernotifications::Notification::new()
@@ -169,6 +153,7 @@ pub(crate) async fn show_notification_async(
     Ok(NotificationHandle::new(notification.clone(), resp))
 }
 
+#[cfg(not(feature = "pure_usernotifications"))]
 pub(crate) fn schedule_notification(notification: &Notification, delivery_date: f64) -> Result<()> {
     let mut n = mac_notification_sys::Notification::default();
     n.title(notification.summary.as_str())

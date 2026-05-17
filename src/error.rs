@@ -6,8 +6,10 @@ use std::{fmt, num};
 /// Convenient wrapper around `std::Result`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
 pub use crate::macos::{ApplicationError, MacOsError, NotificationError};
+#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+pub use crate::macos::MacOsError;
 
 /// The Error type.
 #[derive(Debug)]
@@ -28,7 +30,7 @@ pub enum ErrorKind {
     #[cfg(all(feature = "zbus", unix, not(target_os = "macos")))]
     Zbus(zbus::Error),
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
     MacNotificationSys(mac_notification_sys::error::Error),
 
     // #[cfg(target_os = "macos")]
@@ -59,7 +61,7 @@ impl fmt::Display for Error {
             #[cfg(all(feature = "zbus", unix, not(target_os = "macos")))]
             ErrorKind::Zbus(ref e) => write!(f, "{}", e),
 
-            #[cfg(target_os = "macos")]
+            #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
             ErrorKind::MacNotificationSys(ref e) => write!(f, "{e}"),
 
             #[cfg(target_os = "macos")]
@@ -106,7 +108,7 @@ impl From<zbus::Error> for Error {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
 impl From<mac_notification_sys::error::Error> for Error {
     fn from(e: mac_notification_sys::error::Error) -> Error {
         Error {

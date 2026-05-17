@@ -431,7 +431,7 @@ impl Notification {
     /// Schedules a Notification
     ///
     /// Sends a Notification at the specified date.
-    #[cfg(all(target_os = "macos", feature = "chrono"))]
+    #[cfg(all(target_os = "macos", feature = "chrono", not(feature = "pure_usernotifications")))]
     pub fn schedule<T: chrono::TimeZone>(
         &self,
         delivery_date: chrono::DateTime<T>,
@@ -444,7 +444,7 @@ impl Notification {
     /// Sends a Notification at the specified timestamp.
     /// This is a raw `f64`, if that is a bit too raw for you please activate the feature `"chrono"`,
     /// then you can use `Notification::schedule()` instead, which accepts a `chrono::DateTime<T>`.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
     pub fn schedule_raw(&self, timestamp: f64) -> Result<()> {
         macos::schedule_notification(self, timestamp)
     }

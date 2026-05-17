@@ -1,14 +1,8 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::{ActionResponse, Notification};
 
-    oslog::OsLogger::new("notify-rust")
-        .level_filter(log::LevelFilter::Debug)
-        .init()
-        .unwrap();
-
     cfg_select! {
         feature = "pure_usernotifications" => {
-
             notify_rust::request_auth_blocking().unwrap();
         }
         not(feature = "pure_usernotifications") => {
@@ -16,6 +10,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             notify_rust::set_application(&bundle_id).unwrap();
         }
     }
+
+    // a bundled app can not log to stdout
+    oslog::OsLogger::new("notify-rust")
+        .level_filter(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
 
     Notification::new()
         .summary("Safari Crashed")

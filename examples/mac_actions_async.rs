@@ -1,45 +1,63 @@
-//! Demonstrates concurrent actionable notifications on macOS.
-//!
-//! Both notifications are submitted together inside a single `block_on_main`
-//! call so both banners appear at the same time.  The user can interact with
-//! them in any order; `block_on_main` pumps `NSRunLoop` between polls until
-//! both responses have been captured.
-//!
-//! NOTE: requires a valid app bundle — run via
-//!   cargo bundle --example mac_actions_async && \
-//!     open target/debug/bundle/osx/*.app
-
-#![allow(unused_imports)]
 use notify_rust::{ActionResponse, Notification};
-
-#[cfg(not(target_os = "macos"))]
-fn main() {
-    println!("this is a macOS only example — see `actions.rs` for the XDG version");
-}
 
 #[cfg(target_os = "macos")]
 fn main() {
     use futures_lite::future::zip;
     use mac_usernotifications::block_on_main;
 
-    notify_rust::request_auth_blocking().unwrap();
+    cfg_select! {
+        feature = "pure_usernotifications" => {
+            notify_rust::request_auth_blocking().unwrap();
+        }
+        not(feature = "pure_usernotifications") => {
+            let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
+            notify_rust::set_application(&bundle_id).unwrap();
+        }
+    }
 
-    let (result_a, result_b) = block_on_main(zip(
-        Notification::new()
-            .summary("click me (async)")
-            .body("This action is handled asynchronously")
-            .action("clicked_a", "OK")
-            .show_async(),
-        Notification::new()
-            .summary("pick one (async)")
-            .body("This menu has several options — handled asynchronously")
-            .action("clicked_a", "button a")
-            .action("clicked_b", "button b")
-            .action("clicked_c", "button c")
-            .show_async(),
+    // a bundled app can not log to stdout
+    oslog::OsLogger::new("notify-rust")
+        .level_filter(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
+
+    // Send all notifications concurrently and collect their handles.
+    let ((result_plain, result_image), (result_a, result_b)) = block_on_main(zip(
+        zip(
+            Notification::new()
+                .summary("Safari Crashed")
+                .body("Just kidding, this is just the notify_rust example.")
+                .appname("Toastify")
+                .icon("Toastify")
+                .show_async(),
+            Notification::new()
+                .summary(".image_path()")
+                .body("Trying to open an image")
+                .image_path("./examples/octodex.jpg")
+                .show_async(),
+        ),
+        zip(
+            Notification::new()
+                .summary("click me (async)")
+                .body("This action needs to be clicked")
+                .action("clicked_a", "OK")
+                .show_async(),
+            Notification::new()
+                .summary("pick one (async)")
+                .body("This menu has several options")
+                .action("clicked_a", "button a")
+                .action("clicked_b", "button b")
+                .action("clicked_c", "button c")
+                .show_async(),
+        ),
     ));
 
-    println!("Both notifications handled.");
+    if let Err(e) = result_plain {
+        eprintln!("plain notification failed: {e}");
+    }
+    if let Err(e) = result_image {
+        eprintln!("image notification failed: {e}");
+    }
 
     if let Ok(handle) = result_a {
         handle.wait_for_action(|action| match action {
@@ -58,6 +76,9 @@ fn main() {
             ActionResponse::Custom(other) => println!("notification B — unknown action: {other}"),
         });
     }
+}
 
-    println!("Done.");
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    println!("this is a macOS only example — see `actions.rs` for the XDG version");
 }
