@@ -484,7 +484,7 @@ impl Notification {
     /// Send a fire-and-forget notification via `NSUserNotificationCenter`
     /// (deprecated) or `UNUserNotificationCenter`.
     #[cfg(target_os = "macos")]
-    pub fn show(&self) -> Result<()> {
+    pub fn show(&self) -> Result<macos::NotificationHandle> {
         macos::show_notification(self)
     }
 

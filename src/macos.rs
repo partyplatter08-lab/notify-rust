@@ -1,8 +1,8 @@
 #![allow(missing_docs)]
-use crate::{error::*, notification::Notification, CloseHandler, CloseReason, Timeout};
+use crate::{error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason, Timeout};
 
 pub use mac_notification_sys::error::{ApplicationError, Error as MacOsError, NotificationError};
-use mac_notification_sys::un::{self, NotificationResponse as UnNotificationResponse};
+use mac_notification_sys::un;
 use mac_usernotifications::{NotificationResponse, Sound};
 
 use std::{ops::Deref, time::Duration};
@@ -10,27 +10,60 @@ use std::{ops::Deref, time::Duration};
 #[derive(Debug)]
 pub struct NotificationHandle {
     notification: Notification,
-    response: NotificationResponse,
+    /// `None` on the legacy (`NSUserNotificationCenter`) path where no
+    /// response is available.
+    response: Option<NotificationResponse>,
 }
 
 impl NotificationHandle {
     fn new(notification: Notification, response: NotificationResponse) -> Self {
         Self {
             notification,
-            response,
+            response: Some(response),
+        }
+    }
+
+    #[cfg_attr(feature = "pure_usernotifications", allow(dead_code))]
+    fn new_legacy(notification: Notification) -> Self {
+        Self {
+            notification,
+            response: None,
         }
     }
 
     pub fn wait_for_action<F>(self, invocation_closure: F)
     where
-        F: FnOnce(&str),
+        F: FnOnce(&ActionResponse),
     {
-        let identifier = self.response.action_identifier.as_str();
-        invocation_closure(identifier);
+        let action = self
+            .response
+            .as_ref()
+            .map(response_to_action_response)
+            .unwrap_or(ActionResponse::Closed(CloseReason::Dismissed));
+        invocation_closure(&action);
+    }
+
+    pub async fn wait_for_action_async<F>(self, invocation_closure: F)
+    where
+        F: FnOnce(&ActionResponse),
+    {
+        let action = self
+            .response
+            .as_ref()
+            .map(response_to_action_response)
+            .unwrap_or(ActionResponse::Closed(CloseReason::Dismissed));
+        invocation_closure(&action);
     }
 
     pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
-        handler.call(CloseReason::Dismissed);
+        let is_dismiss = self
+            .response
+            .as_ref()
+            .map(|r| r.is_dismiss_action())
+            .unwrap_or(true);
+        if is_dismiss {
+            handler.call(CloseReason::Dismissed);
+        }
     }
 }
 
@@ -41,18 +74,16 @@ impl Deref for NotificationHandle {
     }
 }
 
-/// TODO: we don't need this if we just remove `__closed`
-fn un_response_to_identifier(resp: &UnNotificationResponse, first_id: Option<&str>) -> String {
-    if resp.is_default_action() {
-        first_id.map_or_else(|| "__closed".to_owned(), str::to_owned)
-    } else if resp.is_dismiss_action() {
-        "__closed".to_owned()
+fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse<'_> {
+    if resp.is_dismiss_action() {
+        ActionResponse::Closed(CloseReason::Dismissed)
     } else if let Some(ref text) = resp.reply_text {
-        text.clone()
+        ActionResponse::Custom(text.as_str())
     } else {
-        resp.action_identifier.clone()
+        ActionResponse::Custom(resp.action_identifier.as_str())
     }
 }
+
 
 impl From<&Notification> for un::Notification {
     fn from(n: &Notification) -> Self {
@@ -103,8 +134,8 @@ impl From<&Notification> for mac_usernotifications::Notification {
 /// API (deprecated macOS ≤ 13, removed macOS 14).  Prefer
 /// [`show_notification_async`] on modern systems.
 /// **OLD VERSION**
-#[cfg(not(feature = "macos_pure_unusernotification_center"))]
-pub(crate) fn show_notification(notification: &Notification) -> Result<()> {
+#[cfg(not(feature = "pure_usernotifications"))]
+pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
     let mut n = mac_notification_sys::Notification::default();
     n.title(notification.summary.as_str())
         .message(&notification.body)
@@ -115,36 +146,22 @@ pub(crate) fn show_notification(notification: &Notification) -> Result<()> {
         n.content_image(image_path);
     }
     n.send()?;
-    Ok(())
+    Ok(NotificationHandle::new_legacy(notification.clone()))
 }
 
 /// Send a fire-and-forget notification via `UNUserNotificationCenter`
-/// (synchronous wrapper, `macos_pure_unusernotification_center` feature).
-#[cfg(feature = "macos_pure_unusernotification_center")]
-pub(crate) fn show_notification(notification: &Notification) -> Result<()> {
-    // un::send_blocking(notification.into())?;
-    mac_usernotifications::send_blocking(notification.into())?;
-    Ok(())
+/// (synchronous wrapper, `pure_usernotifications` feature).
+#[cfg(feature = "pure_usernotifications")]
+pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
+    show_notification_blocking(notification)
 }
 
-/// Send a notification via `UNUserNotificationCenter` and wait for the user
-/// to respond.
-///
-/// For notifications **with** action buttons the user must click one (or
-/// dismiss with a swipe).  For notifications **without** action buttons a
-/// synthetic category is registered internally so that swipe-to-dismiss also
-/// delivers a response — the notification looks identical to a fire-and-forget
-/// banner but its lifecycle is still fully observable.
-///
-/// Returns a [`NotificationHandle`] whose [`wait_for_action`] / [`on_close`]
-/// methods never block — the response is already captured by the time this
-/// future resolves.
-///
-/// The future resolves to `Err(`[`un::Error::ResponseTimeout`]`)` if a timeout
-/// was configured on the notification and the deadline passes.
-///
-/// [`wait_for_action`]: NotificationHandle::wait_for_action
-/// [`on_close`]: NotificationHandle::on_close
+#[cfg(feature = "pure_usernotifications")]
+pub(crate) fn show_notification_blocking(notification: &Notification) -> Result<NotificationHandle> {
+    let resp = mac_usernotifications::send_with_actions_blocking(notification.into())?;
+    Ok(NotificationHandle::new(notification.clone(), resp))
+}
+
 pub(crate) async fn show_notification_async(
     notification: &Notification,
 ) -> Result<NotificationHandle> {

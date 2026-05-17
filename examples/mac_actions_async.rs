@@ -10,7 +10,7 @@
 //!     open target/debug/bundle/osx/*.app
 
 #![allow(unused_imports)]
-use notify_rust::Notification;
+use notify_rust::{ActionResponse, Notification};
 
 #[cfg(not(target_os = "macos"))]
 fn main() {
@@ -20,7 +20,9 @@ fn main() {
 #[cfg(target_os = "macos")]
 fn main() {
     use futures_lite::future::zip;
-    use mac_notification_sys::un::block_on_main;
+    use mac_usernotifications::block_on_main;
+
+    notify_rust::request_auth_blocking().unwrap();
 
     let (result_a, result_b) = block_on_main(zip(
         Notification::new()
@@ -41,19 +43,19 @@ fn main() {
 
     if let Ok(handle) = result_a {
         handle.wait_for_action(|action| match action {
-            "clicked_a" => println!("clicked OK"),
-            "__closed" => println!("notification A was closed"),
-            other => println!("notification A — unknown action: {other}"),
+            ActionResponse::Custom("clicked_a") => println!("clicked OK"),
+            ActionResponse::Closed(_) => println!("notification A was closed"),
+            ActionResponse::Custom(other) => println!("notification A — unknown action: {other}"),
         });
     }
 
     if let Ok(handle) = result_b {
         handle.wait_for_action(|action| match action {
-            "clicked_a" => println!("clicked a"),
-            "clicked_b" => println!("clicked b"),
-            "clicked_c" => println!("clicked c"),
-            "__closed" => println!("notification B was closed"),
-            other => println!("notification B — unknown action: {other}"),
+            ActionResponse::Custom("clicked_a") => println!("clicked a"),
+            ActionResponse::Custom("clicked_b") => println!("clicked b"),
+            ActionResponse::Custom("clicked_c") => println!("clicked c"),
+            ActionResponse::Closed(_) => println!("notification B was closed"),
+            ActionResponse::Custom(other) => println!("notification B — unknown action: {other}"),
         });
     }
 
