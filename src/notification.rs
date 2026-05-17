@@ -483,32 +483,30 @@ impl Notification {
     /// the notification.
     /// Send a fire-and-forget notification via `NSUserNotificationCenter`
     /// (deprecated) or `UNUserNotificationCenter`.
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
     pub fn show(&self) -> Result<macos::NotificationHandle> {
         macos::show_notification(self)
     }
 
-    // /// Send a fire-and-forget notification via `UNUserNotificationCenter`
-    // /// asynchronously.
-    // #[cfg(target_os = "macos")]
-    // pub async fn show_async(&self) -> Result<()> {
-    //     macos::show_notification_async(self).await
-    // }
+    #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+    pub fn show(&self) -> Result<macos::pure_usernotifications::NotificationHandle> {
+        macos::show_notification(self)
+    }
 
     /// Send an actionable notification and wait for the user to respond.
     ///
-    /// Returns a [`NotificationHandle`][macos::NotificationHandle] with the
+    /// Returns a [`NotificationHandle`][macos::pure_usernotifications::NotificationHandle] with the
     /// user's response already captured.  Calling
-    /// [`wait_for_action`][macos::NotificationHandle::wait_for_action] or
-    /// [`on_close`][macos::NotificationHandle::on_close] on the returned
+    /// [`wait_for_action`][macos::pure_usernotifications::NotificationHandle::wait_for_action] or
+    /// [`on_close`][macos::pure_usernotifications::NotificationHandle::on_close] on the returned
     /// handle never blocks.
     ///
     /// The main thread must be pumping `NSRunLoop` while this future is
     /// awaited — use [`block_on_main`][mac_notification_sys::un::block_on_main]
     /// for CLI tools, or call this from within a Tokio task while the main
     /// thread runs [`run_main_loop_while`][mac_notification_sys::un::run_main_loop_while].
-    #[cfg(target_os = "macos")]
-    pub async fn show_async(&self) -> Result<macos::NotificationHandle> {
+    #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+    pub async fn show_async(&self) -> Result<macos::pure_usernotifications::NotificationHandle> {
         macos::show_notification_async(self).await
     }
 
