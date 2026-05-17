@@ -14,7 +14,7 @@ EXAMPLE="${1:-un_async}"
 APP=target/debug/examples/bundle/osx/notify-rust.app
 
 status "Bundling" "$EXAMPLE (example)"
-cargo bundle --example "$EXAMPLE"
+cargo bundle --example "$EXAMPLE" --features pure_usernotifications
 
 status "Signing" "$APP (ad-hoc)"
 codesign --force --deep --sign - "$APP"

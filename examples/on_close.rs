@@ -39,9 +39,9 @@ fn main() {
     wait_for_keypress();
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
 fn main() {
-    use mac_notification_sys::un::block_on_main;
+    use mac_usernotifications::block_on_main;
 
     oslog::OsLogger::new("de.hoodie.notify-rust.example")
         .level_filter(log::LevelFilter::Debug)
@@ -52,7 +52,7 @@ fn main() {
         // Request notification permission.  request_auth returns Ok(bool) —
         // Ok(false) means the user denied permission; that is NOT an Err and
         // must be handled explicitly or show_async will fail silently.
-        match mac_notification_sys::un::request_auth().await {
+        match mac_usernotifications::request_auth().await {
             Ok(true) => log::info!("notification permission granted"),
             Ok(false) => {
                 log::error!("notification permission denied — allow in System Settings → Notifications");
@@ -96,4 +96,9 @@ fn main() {
             log::error!("follow-up notification failed: {e}");
         }
     });
+}
+
+#[cfg(all(not(feature = "pure_usernotifications"), target_os = "macos"))]
+fn main() {
+    println!("this example requires the `pure_usernotifications` feature on macOS")
 }

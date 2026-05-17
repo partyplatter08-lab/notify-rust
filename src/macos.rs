@@ -89,7 +89,7 @@ pub mod pure_usernotifications {
 
     pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
 
-    /// A handle to a shown notification (UNUserNotificationCenter path).
+    /// A handle to a shown notification (`UNUserNotificationCenter` path).
     #[derive(Debug)]
     pub struct NotificationHandle {
         notification: Notification,

@@ -30,15 +30,11 @@ pub enum ErrorKind {
     #[cfg(all(feature = "zbus", unix, not(target_os = "macos")))]
     Zbus(zbus::Error),
 
+    #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+    MacNotifications(mac_usernotifications::Error),
+
     #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
     MacNotificationSys(mac_notification_sys::error::Error),
-
-    // #[cfg(target_os = "macos")]
-    // #[cfg(not(feature = "pure_usernotifications"))]
-    // UnUserNotificationError(mac_notification_sys::un::Error),
-    #[cfg(target_os = "macos")]
-    // #[cfg(feature = "pure_usernotifications")]
-    MacNotifications(mac_usernotifications::Error),
 
     Parse(num::ParseIntError),
 
@@ -64,7 +60,7 @@ impl fmt::Display for Error {
             #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
             ErrorKind::MacNotificationSys(ref e) => write!(f, "{e}"),
 
-            #[cfg(target_os = "macos")]
+            #[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
             ErrorKind::MacNotifications(ref e) => write!(f, "{e}"),
 
             ErrorKind::Parse(ref e) => write!(f, "Parsing Error: {e}"),
@@ -117,7 +113,7 @@ impl From<mac_notification_sys::error::Error> for Error {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
 impl From<mac_usernotifications::Error> for Error {
     fn from(e: mac_usernotifications::Error) -> Error {
         Error {

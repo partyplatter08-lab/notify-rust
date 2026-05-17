@@ -459,7 +459,7 @@ impl Notification {
     /// then you can use `Notification::schedule()` instead, which accepts a `chrono::DateTime<T>`.
     #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
     pub fn schedule_raw(&self, timestamp: f64) -> Result<NotificationHandle> {
-        macos::schedule_notification(self, timestamp)?;
+        macos::schedule_notification(self, timestamp)
     }
 
     /// Sends Notification to D-Bus.
@@ -497,7 +497,7 @@ impl Notification {
     /// Send a fire-and-forget notification via `NSUserNotificationCenter`
     /// (deprecated) or `UNUserNotificationCenter`.
     #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
-    pub fn show(&self) -> Result<macos::legacy::NotificationHandle> {
+    pub fn show(&self) -> Result<NotificationHandle> {
         macos::show_notification(self)
     }
 

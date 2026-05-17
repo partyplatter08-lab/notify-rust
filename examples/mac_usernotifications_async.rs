@@ -1,7 +1,6 @@
-use notify_rust::{ActionResponse, Notification};
-
-#[cfg(target_os = "macos")]
+#[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
 fn main() {
+    use notify_rust::{ActionResponse, Notification};
     use futures_lite::future::zip;
     use mac_usernotifications::block_on_main;
 
@@ -76,6 +75,11 @@ fn main() {
             ActionResponse::Custom(other) => println!("notification B — unknown action: {other}"),
         });
     }
+}
+
+#[cfg(all(not(feature = "pure_usernotifications"), target_os = "macos"))]
+fn main() {
+    println!("this example requires the `pure_usernotifications` feature")
 }
 
 #[cfg(not(target_os = "macos"))]

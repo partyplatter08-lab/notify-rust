@@ -41,9 +41,9 @@ winrt-notification = { package = "tauri-winrt-notification", version = "0.7" }
 [features]
 default = [
     "z",
-    # "pure_usernotifications"
+    "pure_usernotifications"
 ]
-# server = []
+server = []
 d = ["dbus"]
 d_vendored = ["dbus/vendored"]
 z = ["zbus", "serde", "async"]
@@ -92,6 +92,21 @@ required-features = ["async"]
 name = "simple_async"
 path = "examples/simple_async.rs"
 required-features = ["async"]
+
+[[example]]
+name = "mac_usernotifications"
+path = "examples/mac_usernotifications.rs"
+required-features = ["pure_usernotifications"]
+
+[[example]]
+name = "mac_usernotifications_async"
+path = "examples/mac_usernotifications_async.rs"
+required-features = ["pure_usernotifications"]
+
+[[example]]
+name = "on_close"
+path = "examples/on_close.rs"
+required-features = ["pure_usernotifications"]
 
 [dependencies]
 futures-lite = "2.6.1"
