@@ -4,6 +4,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     cfg_select! {
         feature = "pure_usernotifications" => {
+            // a bundled app can not log to stdout
+            oslog::OsLogger::new("notify-rust")
+                .level_filter(log::LevelFilter::Debug)
+                .init()
+                .unwrap();
+
             notify_rust::request_auth_blocking().unwrap();
         }
         not(feature = "pure_usernotifications") => {
@@ -22,9 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Notification::new()
         .summary(".image_path()")
         .body("Trying to open an image")
-        .image_path("./examples/octodex.jpg")
+        .image_path(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/octodex.jpg"))
         .show()?;
-
 
     Ok(())
 }

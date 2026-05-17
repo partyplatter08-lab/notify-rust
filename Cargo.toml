@@ -39,10 +39,7 @@ mac-usernotifications = { path = "../mac-usernotifications" }
 winrt-notification = { package = "tauri-winrt-notification", version = "0.7" }
 
 [features]
-default = [
-    "z",
-    "pure_usernotifications"
-]
+default = ["z", "pure_usernotifications"]
 server = []
 d = ["dbus"]
 d_vendored = ["dbus/vendored"]
@@ -62,6 +59,7 @@ ctor = "0.12"
 maplit = "1.0"
 oslog = "0.2"
 log = "0.4"
+libc = "0.2.183"
 
 [dev-dependencies.async-std]
 version = "1.12.0"

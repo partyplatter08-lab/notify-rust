@@ -81,43 +81,53 @@
 //! ❌ = will not compile
 //!
 //! ## `Notification`
-//! | method              | XDG   | macOS | windows |
-//! |---------------------|-------|-------|---------|
-//! |  `fn appname(...)`  |  ✔︎    |       |        |
-//! |  `fn summary(...)`  |  ✔︎    | ✔︎     |  ✔︎    |
-//! |  `fn subtitle(...)` |       | ✔︎     |  ✔︎    |
-//! |  `fn body(...)`     |  ✔︎    | ✔︎     |  ✔︎    |
-//! |  `fn icon(...)`     |  ✔︎    |       |        |
-//! |  `fn image_path(...)`|  ✔︎   | ✔︎     |  ✔︎    |
-//! |  `fn auto_icon(...)`|  ✔︎    |       |        |
-//! |  `fn hint(...)`     |  ✔︎    | ❌    | ❌    |
-//! |  `fn timeout(...)`  |  ✔︎    |       |  ✔︎    |
-//! |  `fn urgency(...)`  |  ✔︎    | ❌    |  ✔︎    |
-//! |  `fn action(...)`   |  ✔︎    | ✔︎    |        |
-//! |  `fn id(...)`       |  ✔︎    |       |        |
-//! |  `fn finalize(...)` |  ✔︎    | ✔︎     |  ✔︎    |
-//! |  `fn show(...)`     |  ✔︎    | ✔︎     |  ✔︎    |
+//!
+//! macOS (legacy) = `mac-notification-sys` / `NSUserNotificationCenter` path (no feature flag)<br/>
+//! macOS (UN) = `UNUserNotificationCenter` path (`pure_usernotifications` feature)
+//!
+//! | method               | XDG | macOS (legacy) | macOS (UN) | windows |
+//! |----------------------|-----|----------------|------------|---------|
+//! | `fn appname(...)`    | ✔︎   |                |            |         |
+//! | `fn summary(...)`    | ✔︎   | ✔︎              | ✔︎          | ✔︎       |
+//! | `fn subtitle(...)`   |     | ✔︎              | ✔︎          | ✔︎       |
+//! | `fn body(...)`       | ✔︎   | ✔︎              | ✔︎          | ✔︎       |
+//! | `fn icon(...)`       | ✔︎   |                |            |         |
+//! | `fn image_path(...)` | ✔︎   | ✔︎              | ✔︎          | ✔︎       |
+//! | `fn auto_icon(...)`  | ✔︎   |                |            |         |
+//! | `fn hint(...)`       | ✔︎   | ❌             | ❌         | ❌      |
+//! | `fn timeout(...)`    | ✔︎   |                | ✔︎          | ✔︎       |
+//! | `fn urgency(...)`    | ✔︎   | ❌             | ❌         | ✔︎       |
+//! | `fn action(...)`     | ✔︎   | ✔︎              | ✔︎          |         |
+//! | `fn id(...)`         | ✔︎   |                | ✔︎          |         |
+//! | `fn sound(...)`      |     | ✔︎              | ✔︎          |         |
+//! | `fn thread_id(...)`  |     |                | ✔︎          |         |
+//! | `fn schedule_in(...)`|     | ✔︎              | ✔︎          |         |
+//! | `fn finalize(...)`   | ✔︎   | ✔︎              | ✔︎          | ✔︎       |
+//! | `fn show(...)`       | ✔︎   | ✔︎              | ✔︎          | ✔︎       |
+//! | `fn show_async(...)` | ✔︎   |                | ✔︎          |         |
 //!
 //! ## `NotificationHandle`
 //!
-//! | method                   | XDG | macOS | windows |
-//! |--------------------------|-----|-------|---------|
-//! | `fn wait_for_action(...)`|  ✔︎  |  ✔︎   |   ❌   |
-//! | `fn close(...)`          |  ✔︎  |  ❌  |   ❌   |
-//! | `fn on_close(...)`       |  ✔︎  |  ✔︎   |   ❌   |
-//! | `fn update(...)`         |  ✔︎  |  ❌  |   ❌   |
-//! | `fn id(...)`             |  ✔︎  |  ❌  |   ❌   |
+//! | method                         | XDG | macOS (legacy) | macOS (UN) | windows |
+//! |--------------------------------|-----|----------------|------------|---------|
+//! | `fn wait_for_action(...)`      | ✔︎   |                | ✔︎          | ❌      |
+//! | `fn wait_for_action_async(...)`|     |                | ✔︎          | ❌      |
+//! | `fn close(...)`                | ✔︎   |                | ❌         | ❌      |
+//! | `fn on_close(...)`             | ✔︎   |                | ✔︎          | ❌      |
+//! | `fn update(...)`               | ✔︎   |                | ✔︎          | ❌      |
+//! | `fn update_async(...)`         |     |                | ✔︎          | ❌      |
+//! | `fn id(...)`                   | ✔︎   |                | ❌         | ❌      |
 //!
 //! ## Functions
 //!
-//! |                                            | XDG | macOS | windows |
-//! |--------------------------------------------|-----|-------|---------|
-//! | `fn get_capabilities(...)`                 | ✔︎   |   ❌ |  ❌    |
-//! | `fn get_server_information(...)`           | ✔︎   |   ❌ |  ❌    |
-//! | `fn set_application(...)`                  | ❌  |   ✔︎  |  ❌    |
-//! | `fn get_bundle_identifier_or_default(...)` | ❌  |   ✔︎  |  ❌    |
-//! | `fn request_auth(...)`                     | ❌  |   ✔︎  |  ❌    |
-//! | `fn request_auth_blocking(...)`            | ❌  |   ✔︎  |  ❌    |
+//! |                                            | XDG | macOS (legacy) | macOS (UN) | windows |
+//! |--------------------------------------------|-----|----------------|------------|---------|
+//! | `fn get_capabilities(...)`                 | ✔︎   | ❌             | ❌         | ❌      |
+//! | `fn get_server_information(...)`           | ✔︎   | ❌             | ❌         | ❌      |
+//! | `fn set_application(...)`                  | ❌  | ✔︎              | ❌         | ❌      |
+//! | `fn get_bundle_identifier_or_default(...)` | ❌  | ✔︎              | ❌         | ❌      |
+//! | `fn request_auth(...)`                     | ❌  | ❌             | ✔︎          | ❌      |
+//! | `fn request_auth_blocking(...)`            | ❌  | ❌             | ✔︎          | ❌      |
 //!
 //!
 //! ### Toggles
@@ -168,6 +178,7 @@ pub mod error;
 mod hints;
 mod miniver;
 mod notification;
+mod notification_id;
 mod timeout;
 pub(crate) mod urgency;
 
@@ -219,7 +230,7 @@ pub use crate::image::{Image, ImageError};
 )]
 pub use crate::urgency::Urgency;
 
-pub use crate::{notification::Notification, timeout::Timeout};
+pub use crate::{notification::Notification, notification_id::NotificationId, timeout::Timeout};
 
 #[cfg(all(feature = "images_no_default_features", unix, not(target_os = "macos")))]
 lazy_static! {

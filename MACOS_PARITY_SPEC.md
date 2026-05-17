@@ -1,6 +1,6 @@
 # macOS Feature Parity Spec
 
-> Status: **DRAFT v2 — incorporating author decisions**
+> Status: **complete** — all tasks implemented
 
 ## Goal
 
@@ -124,7 +124,7 @@ only on the `NotificationClosed` D-Bus signal, not on action clicks).
 
 Add under `#[cfg(feature = "pure_usernotifications")]`:
 
-```/dev/null/spec.rs#L1-6
+```rs
 /// Blocking send-and-wait-for-response via `UNUserNotificationCenter`.
 pub(crate) fn show_notification_blocking(notification: &Notification) -> Result<NotificationHandle> {
     let resp = mac_usernotifications::send_with_actions_blocking(notification.into())?;
@@ -135,7 +135,7 @@ pub(crate) fn show_notification_blocking(notification: &Notification) -> Result<
 Update `un_response_to_identifier` — or remove it entirely — replacing its use in
 `wait_for_action` with a proper `NotificationResponse → ActionResponse` mapping function:
 
-```/dev/null/spec.rs#L1-10
+```rs
 fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse<'_> {
     if resp.is_dismiss_action() {
         ActionResponse::Closed(CloseReason::Dismissed)
@@ -155,7 +155,7 @@ fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse<'_
 
 **`wait_for_action`** — change closure type from `FnOnce(&str)` to `FnOnce(&ActionResponse)`:
 
-```/dev/null/spec.rs#L1-6
+```rs
 pub fn wait_for_action<F>(self, invocation_closure: F)
 where
     F: FnOnce(&ActionResponse),
@@ -166,7 +166,7 @@ where
 
 **`wait_for_action_async`** — new method, response already in hand so no blocking:
 
-```/dev/null/spec.rs#L1-7
+```rs
 pub async fn wait_for_action_async<F>(self, invocation_closure: F)
 where
     F: FnOnce(&ActionResponse),
@@ -177,7 +177,7 @@ where
 
 **`on_close`** — fire handler only on dismiss:
 
-```/dev/null/spec.rs#L1-8
+```rs
 pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
     if self.response.is_dismiss_action() {
         handler.call(CloseReason::Dismissed);
@@ -227,4 +227,49 @@ Update `wait_for_action` call sites to use `&ActionResponse` match arms instead 
 
 ## Status
 
-All questions resolved. Ready to implement.
+All tasks implemented.
+
+---
+
+## Legacy vs `pure_usernotifications` comparison
+
+This table shows what `NSUserNotificationCenter` (via `mac-notification-sys`) supported
+versus what `UNUserNotificationCenter` (via `mac-usernotifications`) provides.
+
+### `Notification` builder
+
+| method              | legacy (`NSUserNotif.`) | `pure_usernotifications` |
+|---------------------|-------------------------|--------------------------|
+| `fn summary(...)`   | ✅                      | ✅                       |
+| `fn subtitle(...)`  | ✅                      | ✅                       |
+| `fn body(...)`      | ✅                      | ✅                       |
+| `fn image_path(...)`| ✅ (content image)      | ✅ (attachment)          |
+| `fn action(...)`    | ✅ (main button only)   | ✅ (multiple buttons)    |
+| `fn sound(...)`     | ✅                      | ✅                       |
+| `fn timeout(...)`   | ❌                      | ✅                       |
+| `fn id(...)`        | ❌                      | ✅ (string id)           |
+| `fn thread_id(...)` | ❌                      | ✅                       |
+| `fn schedule_in(...)` | ✅ (delivery date)    | ✅ (time interval)       |
+| `fn show_async(...)`| ❌                      | ✅                       |
+| reply actions       | ❌                      | ✅                       |
+| image attachments   | ✅                      | ✅                       |
+
+### `NotificationHandle`
+
+| method                          | legacy | `pure_usernotifications` |
+|---------------------------------|--------|--------------------------|
+| `fn wait_for_action(...)`       | ❌     | ✅                       |
+| `fn wait_for_action_async(...)` | ❌     | ✅                       |
+| `fn on_close(...)`              | ❌     | ✅                       |
+| `fn update(...)`                | ❌     | ✅                       |
+| `fn update_async(...)`          | ❌     | ✅                       |
+| `fn close(...)`                 | ❌     | ❌ (not yet)             |
+| `fn id(...)`                    | ❌     | ❌ (not yet)             |
+
+### Notable legacy-only features
+
+- `fn close_button(...)` — a dedicated dismiss button label
+- `fn app_icon(...)` — override the icon shown next to the notification title
+- `fn wait_for_click(...)` / `fn asynchronous(...)` — lower-level delivery control
+
+These have no equivalent in `UNUserNotificationCenter` and are not forwarded.

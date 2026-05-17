@@ -49,13 +49,10 @@ fn main() {
         .unwrap();
 
     block_on_main(async {
-        // Request notification permission.  request_auth returns Ok(bool) —
-        // Ok(false) means the user denied permission; that is NOT an Err and
-        // must be handled explicitly or show_async will fail silently.
         match mac_usernotifications::request_auth().await {
             Ok(true) => log::info!("notification permission granted"),
             Ok(false) => {
-                log::error!("notification permission denied — allow in System Settings → Notifications");
+                log::error!("permission denied: allow in System Settings → Notifications");
                 return;
             }
             Err(e) => {
@@ -83,7 +80,7 @@ fn main() {
             }
         };
 
-        // on_close never blocks — the response is already captured.
+        // on_close never blocks, the response is already captured.
         // CloseHandler is a sync trait; async follow-up work goes after.
         handle.on_close(|| log::info!("notification was closed"));
 

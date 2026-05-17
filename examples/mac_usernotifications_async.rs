@@ -1,8 +1,8 @@
 #[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
 fn main() {
-    use notify_rust::{ActionResponse, Notification};
     use futures_lite::future::zip;
     use mac_usernotifications::block_on_main;
+    use notify_rust::{ActionResponse, Notification};
 
     cfg_select! {
         feature = "pure_usernotifications" => {
@@ -62,7 +62,7 @@ fn main() {
         handle.wait_for_action(|action| match action {
             ActionResponse::Custom("clicked_a") => println!("clicked OK"),
             ActionResponse::Closed(_) => println!("notification A was closed"),
-            ActionResponse::Custom(other) => println!("notification A — unknown action: {other}"),
+            ActionResponse::Custom(other) => println!("notification A: unknown action: {other}"),
         });
     }
 
@@ -72,7 +72,7 @@ fn main() {
             ActionResponse::Custom("clicked_b") => println!("clicked b"),
             ActionResponse::Custom("clicked_c") => println!("clicked c"),
             ActionResponse::Closed(_) => println!("notification B was closed"),
-            ActionResponse::Custom(other) => println!("notification B — unknown action: {other}"),
+            ActionResponse::Custom(other) => println!("notification B - unknown action: {other}"),
         });
     }
 }
@@ -84,5 +84,5 @@ fn main() {
 
 #[cfg(not(target_os = "macos"))]
 fn main() {
-    println!("this is a macOS only example — see `actions.rs` for the XDG version");
+    println!("this is a macOS only example - see `actions.rs` for the XDG version");
 }

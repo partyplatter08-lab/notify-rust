@@ -1,5 +1,6 @@
-#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+#[cfg(target_os = "macos")]
 use crate::NotificationHandle;
+
 #[cfg(all(unix, not(target_os = "macos")))]
 use crate::{
     hints::{CustomHintType, Hint},
@@ -99,8 +100,11 @@ pub struct Notification {
     /// Lifetime of the Notification in ms. Often not respected by server, sorry.
     pub timeout: Timeout, // both gnome and galago want allow for -1
 
-    /// Only to be used on the receive end. Use Notification hand for updating.
-    pub(crate) id: Option<u32>,
+    /// Notification identifier.
+    ///
+    /// On XDG holds a `u32` assigned by the notification server.
+    /// On macOS holds a caller-supplied `String` used for in-place replacement.
+    pub(crate) id: Option<crate::NotificationId>,
 }
 
 impl Notification {
@@ -161,8 +165,7 @@ impl Notification {
 
     /// Sets the image path for the notification˝.
     ///
-    /// The path is passed to the platform's native notification API directly — no additional
-    /// dependencies or crate features are required.
+    /// The path is passed to the platform's native notification API directly.
     ///
     /// Platform behaviour:
     /// - **Linux/BSD (XDG):** maps to the `image-path` hint in the D-Bus notification spec.
@@ -417,9 +420,16 @@ impl Notification {
     /// Though if you want to update a notification, it is easier to use the `update()` method of
     /// the `NotificationHandle` object that `show()` returns.
     ///
-    /// (xdg only)
-    pub fn id(&mut self, id: u32) -> &mut Notification {
-        self.id = Some(id);
+    /// Set an identifier to allow updating or replacing an existing notification.
+    ///
+    /// Pass a `u32` on XDG (Linux/BSD) or a `&str` / `String` on macOS.
+    /// Both convert into [`NotificationId`](crate::NotificationId) automatically.
+    ///
+    /// On XDG, re-using an id replaces the matching notification on the server.
+    /// On macOS, re-posting with the same string id replaces the notification
+    /// in Notification Center in-place.
+    pub fn id(&mut self, id: impl Into<crate::NotificationId>) -> &mut Notification {
+        self.id = Some(id.into());
         self
     }
 
@@ -438,17 +448,6 @@ impl Notification {
         &self,
         delivery_date: chrono::DateTime<T>,
     ) -> Result<macos::NotificationHandle> {
-        todo!("scheduling is not yet implemented by mac-usernotificaitons")
-    }
-
-    /// Schedules a Notification
-    ///
-    /// Sends a Notification at the specified date.
-    #[cfg(all(target_os = "macos", feature = "chrono", not(feature = "pure_usernotifications")))]
-    pub fn schedule<T: chrono::TimeZone>(
-        &self,
-        delivery_date: chrono::DateTime<T>,
-    ) -> Result<macos::NotificationHandle> {
         macos::schedule_notification(self, delivery_date.timestamp() as f64)
     }
 
@@ -457,7 +456,7 @@ impl Notification {
     /// Sends a Notification at the specified timestamp.
     /// This is a raw `f64`, if that is a bit too raw for you please activate the feature `"chrono"`,
     /// then you can use `Notification::schedule()` instead, which accepts a `chrono::DateTime<T>`.
-    #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+    #[cfg(target_os = "macos")]
     pub fn schedule_raw(&self, timestamp: f64) -> Result<NotificationHandle> {
         macos::schedule_notification(self, timestamp)
     }
@@ -495,14 +494,18 @@ impl Notification {
     /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
     /// the notification.
     /// Send a fire-and-forget notification via `NSUserNotificationCenter`
-    /// (deprecated) or `UNUserNotificationCenter`.
     #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
     pub fn show(&self) -> Result<NotificationHandle> {
         macos::show_notification(self)
     }
 
+    /// Sends Notification to `NSUserNotificationCenter`.
+    ///
+    /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
+    /// the notification.
+    /// Send a fire-and-forget notification via `UNUserNotificationCenter`.
     #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
-    pub fn show(&self) -> Result<macos::pure_usernotifications::NotificationHandle> {
+    pub fn show(&self) -> Result<NotificationHandle> {
         macos::show_notification(self)
     }
 
@@ -514,12 +517,11 @@ impl Notification {
     /// [`on_close`][macos::pure_usernotifications::NotificationHandle::on_close] on the returned
     /// handle never blocks.
     ///
-    /// The main thread must be pumping `NSRunLoop` while this future is
-    /// awaited — use [`block_on_main`][mac_notification_sys::un::block_on_main]
-    /// for CLI tools, or call this from within a Tokio task while the main
-    /// thread runs [`run_main_loop_while`][mac_notification_sys::un::run_main_loop_while].
+    /// The main thread must be pumping `NSRunLoop` while this future is awaited,
+    /// use [`block_on_main`][mac_notification_sys::un::block_on_main] for CLI tools,
+    /// or call this from within a Tokio task while the main thread runs [`run_main_loop_while`][mac_notification_sys::un::run_main_loop_while].
     #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
-    pub async fn show_async(&self) -> Result<macos::pure_usernotifications::NotificationHandle> {
+    pub async fn show_async(&self) -> Result<NotificationHandle> {
         macos::show_notification_async(self).await
     }
 

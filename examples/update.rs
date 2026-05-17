@@ -61,9 +61,35 @@ fn recycling_one_id() {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
 fn main() {
-    println!("this is a xdg only feature")
+    use notify_rust::Notification;
+
+    notify_rust::request_auth_blocking().unwrap();
+
+    oslog::OsLogger::new("notify-rust")
+        .level_filter(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
+
+    // Update via handle - mirrors the XDG update_via_handle() pattern above.
+    // show() returns a handle; mutate it then call update() to replace in-place.
+    let mut handle = Notification::new()
+        .summary("First Notification")
+        .body("This notification will be changed through the handle.")
+        .show()
+        .unwrap();
+
+    std::thread::sleep(Duration::from_millis(1_500));
+
+    handle.summary = "Updated Notification".into();
+    handle.body = "Changed through the handle, just like XDG.".into();
+    handle.update().unwrap();
+}
+
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+fn main() {
+    println!("this example requires the `pure_usernotifications` feature on macOS");
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]

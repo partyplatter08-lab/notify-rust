@@ -22,9 +22,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::Notification;
-    use mac_usernotifications::request_auth;
 
-    request_auth().await?;
+    notify_rust::request_auth().await?;
 
     Notification::new()
         .summary("async notification")
