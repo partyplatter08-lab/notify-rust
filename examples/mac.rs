@@ -1,6 +1,11 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::{ActionResponse, Notification};
 
+    oslog::OsLogger::new("notify-rust")
+        .level_filter(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
+
     cfg_select! {
         feature = "pure_usernotifications" => {
 

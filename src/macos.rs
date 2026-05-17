@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
-use crate::{error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason, Timeout};
+use crate::{
+    error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason, Timeout,
+};
 
 pub use mac_notification_sys::error::{ApplicationError, Error as MacOsError, NotificationError};
 use mac_notification_sys::un;
@@ -35,11 +37,10 @@ impl NotificationHandle {
     where
         F: FnOnce(&ActionResponse),
     {
-        let action = self
-            .response
-            .as_ref()
-            .map(response_to_action_response)
-            .unwrap_or(ActionResponse::Closed(CloseReason::Dismissed));
+        let action = self.response.as_ref().map_or(
+            ActionResponse::Closed(CloseReason::Dismissed),
+            response_to_action_response,
+        );
         invocation_closure(&action);
     }
 
@@ -47,11 +48,10 @@ impl NotificationHandle {
     where
         F: FnOnce(&ActionResponse),
     {
-        let action = self
-            .response
-            .as_ref()
-            .map(response_to_action_response)
-            .unwrap_or(ActionResponse::Closed(CloseReason::Dismissed));
+        let action = self.response.as_ref().map_or(
+            ActionResponse::Closed(CloseReason::Dismissed),
+            response_to_action_response,
+        );
         invocation_closure(&action);
     }
 
@@ -59,8 +59,7 @@ impl NotificationHandle {
         let is_dismiss = self
             .response
             .as_ref()
-            .map(|r| r.is_dismiss_action())
-            .unwrap_or(true);
+            .map_or(true, |r| r.is_dismiss_action());
         if is_dismiss {
             handler.call(CloseReason::Dismissed);
         }
@@ -83,7 +82,6 @@ fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse<'_
         ActionResponse::Custom(resp.action_identifier.as_str())
     }
 }
-
 
 impl From<&Notification> for un::Notification {
     fn from(n: &Notification) -> Self {
@@ -157,7 +155,9 @@ pub(crate) fn show_notification(notification: &Notification) -> Result<Notificat
 }
 
 #[cfg(feature = "pure_usernotifications")]
-pub(crate) fn show_notification_blocking(notification: &Notification) -> Result<NotificationHandle> {
+pub(crate) fn show_notification_blocking(
+    notification: &Notification,
+) -> Result<NotificationHandle> {
     let resp = mac_usernotifications::send_with_actions_blocking(notification.into())?;
     Ok(NotificationHandle::new(notification.clone(), resp))
 }
