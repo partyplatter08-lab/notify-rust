@@ -1,13 +1,15 @@
 #![allow(unused_imports)]
 use notify_rust::{Hint, Notification, Timeout};
+mod common;
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(target_os = "windows")]
 fn main() {
     println!("this is a xdg only feature");
 }
 
 #[cfg(unix)]
 fn main() {
+    common::setup();
     Notification::new()
         .summary("click me")
         .body("This will disappear by itself")
