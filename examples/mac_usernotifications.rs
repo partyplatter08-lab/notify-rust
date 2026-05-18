@@ -1,4 +1,4 @@
-#[cfg(all(target_os = "macos"))]
+#[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::{ActionResponse, Notification};
 

@@ -7,6 +7,8 @@ use crate::{
     urgency::Urgency,
     xdg,
 };
+#[cfg(all(unix, target_os = "macos"))]
+use crate::Hint;
 
 #[cfg(all(unix, not(target_os = "macos"), feature = "images_no_default_features"))]
 use crate::image::Image;
@@ -292,6 +294,11 @@ impl Notification {
                 self.hints.insert(hint);
             }
         }
+        self
+    }
+    /// This is a dummy on macos and has no function
+    #[cfg(all(unix, target_os = "macos"))]
+    pub fn hint(&mut self, _: Hint) -> &mut Notification {
         self
     }
 

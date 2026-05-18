@@ -6,7 +6,7 @@ fn main() {
     println!("this is a xdg only feature");
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(unix)]
 fn main() {
     Notification::new()
         .summary("click me")

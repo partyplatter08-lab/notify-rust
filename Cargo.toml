@@ -50,6 +50,7 @@ tokio = ["zbus/tokio"]
 debug_namespace = []
 images = ["images_no_default_features", "image/rayon", "image/default-formats"]
 images_no_default_features = ["image", "lazy_static"]
+
 # Use the pure `mac_usernotifications` API instead of the legacy `mac_notification_sys::Notification` API.
 pure_usernotifications = []
 

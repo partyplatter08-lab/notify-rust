@@ -60,7 +60,7 @@ The main audience of this library are Linux/BSD based desktop environments that 
 
 Enables sending of images with notifications via the `image_data()` / pixel-buffer API. This is only supported on XDG and requires the [**image** crate](https://lib.rs/image) as well as [**lazy_static**](https://lib.rs/lazy_static) to determine the supported spec-version on startup.
 
-> **Note on `image_path()`:** Passing an image by file path via `image_path()` does **not** require the `images` feature on any platform. On Linux/BSD it maps to the `image-path` XDG hint, on macOS it maps to `content_image` in `mac-notification-sys`, and on Windows it is passed directly to `winrt-notification`, all without any additional dependencies.
+> **Note on `image_path()`:** Passing an image by file path via `image_path()` does **not** require the `images` feature on any platform. On Linux/BSD it maps to the `image-path` XDG hint, on macOS it maps to `content_image` in `mac-notification-sys`, and on Windows it is passed directly to `winrt-notification` — all without any additional dependencies.
 
 #### `d`
 

@@ -82,12 +82,12 @@ pub mod legacy {
 #[cfg(feature = "pure_usernotifications")]
 pub mod pure_usernotifications {
     use crate::{
-        error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason, Timeout,
+        error::*, notification::Notification, ActionResponse, ActionResponseHandler, CloseHandler,
+        CloseReason, Timeout,
     };
+    pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
     use mac_usernotifications::{NotificationResponse, Sound};
     use std::{ops::Deref, time::Duration};
-
-    pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
 
     /// A handle to a shown notification (`UNUserNotificationCenter` path).
     #[derive(Debug)]
@@ -106,26 +106,24 @@ pub mod pure_usernotifications {
             }
         }
 
-        pub fn wait_for_action<F>(self, invocation_closure: F)
-        where
-            F: FnOnce(&ActionResponse),
-        {
-            let action = self.response.as_ref().map_or(
-                ActionResponse::Closed(CloseReason::Dismissed),
-                response_to_action_response,
-            );
-            invocation_closure(&action);
-        }
+        // pub fn wait_for_action<F>(
+        //     self,
+        //     invocation_closure: impl ActionResponseHandler,
+        // ) -> crate::error::Result<()> {
+        //     let action = self.response.as_ref().map_or(
+        //         ActionResponse::Closed(CloseReason::Dismissed),
+        //         response_to_action_response,
+        //     );
+        //     invocation_closure.call(&action);
+        //     Ok(())
+        // }
 
-        pub async fn wait_for_action_async<F>(self, invocation_closure: F)
-        where
-            F: FnOnce(&ActionResponse),
-        {
+        pub async fn wait_for_action<F>(self, invocation_closure: impl ActionResponseHandler) {
             let action = self.response.as_ref().map_or(
                 ActionResponse::Closed(CloseReason::Dismissed),
                 response_to_action_response,
             );
-            invocation_closure(&action);
+            invocation_closure.call(&action);
         }
 
         pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
@@ -198,7 +196,7 @@ pub mod pure_usernotifications {
                 .maybe_sound(n.sound_name.clone().map(Sound::Custom));
 
             if let Some(ref sound_name) = n.sound_name {
-                un = un.sound(sound_name);
+                un = un.sound(sound_name.as_str());
             }
             for chunk in n.actions.chunks(2) {
                 if let (Some(id), Some(label)) = (chunk.first(), chunk.get(1)) {
@@ -275,13 +273,9 @@ pub mod pure_usernotifications {
 }
 
 #[cfg(not(feature = "pure_usernotifications"))]
-pub(crate) use legacy::schedule_notification;
-#[cfg(not(feature = "pure_usernotifications"))]
-pub(crate) use legacy::show_notification;
+pub(crate) use legacy::{schedule_notification, show_notification};
 
 #[cfg(feature = "pure_usernotifications")]
-pub(crate) use pure_usernotifications::schedule_notification;
-#[cfg(feature = "pure_usernotifications")]
-pub(crate) use pure_usernotifications::show_notification;
-#[cfg(feature = "pure_usernotifications")]
-pub(crate) use pure_usernotifications::show_notification_async;
+pub(crate) use pure_usernotifications::{
+    schedule_notification, show_notification, show_notification_async,
+};
