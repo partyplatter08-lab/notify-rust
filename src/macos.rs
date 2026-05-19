@@ -327,8 +327,12 @@ pub mod pure_usernotifications {
             if let Some(ref path) = n.path_to_image {
                 un = un.image_path(path);
             }
-            if let Some(crate::NotificationId::Mac(ref nid)) = n.id {
-                un = un.id(nid);
+            if let Some(ref nid) = n.id {
+                let id_str = match nid {
+                    crate::NotificationId::Mac(ref string_id) => string_id.clone(),
+                    crate::NotificationId::Xdg(num) => num.to_string(),
+                };
+                un = un.id(&id_str);
             }
             un
         }
