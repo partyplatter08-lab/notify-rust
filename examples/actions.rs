@@ -4,10 +4,11 @@ mod common;
 
 #[cfg(target_os = "windows")]
 fn main() {
-    println!("this is a xdg only feature");
+    log::info!("this is a xdg only feature");
 }
 
-#[cfg(unix)]
+// linux and mac, but on mac only with `"pure_usernotifications"` feature
+#[cfg(any(target_os = "linux", all(target_os = "macos", feature = "pure_usernotifications")))]
 fn main() {
     common::setup();
     Notification::new()
@@ -18,9 +19,9 @@ fn main() {
         .show()
         .unwrap()
         .wait_for_action(|action| match action {
-            "clicked_a" => println!("clicked a"),
+            "clicked_a" => log::info!("clicked a"),
             // FIXME: here "__closed" is a hardcoded keyword, it will be deprecated!!
-            "__closed" => println!("the notification was closed"),
+            "__closed" => log::info!("the notification was closed"),
             _ => (),
         });
 
@@ -35,11 +36,11 @@ fn main() {
         .show()
         .unwrap()
         .wait_for_action(|action| match action {
-            "default" => println!("default"),
-            "clicked_a" => println!("clicked a"),
-            "clicked_b" => println!("clicked b"),
+            "default" => log::info!("default"),
+            "clicked_a" => log::info!("clicked a"),
+            "clicked_b" => log::info!("clicked b"),
             // FIXME: here "__closed" is a hardcoded keyword, it will be deprecated!!
-            "__closed" => println!("the notification was closed"),
+            "__closed" => log::info!("the notification was closed"),
             _ => (),
         });
 
@@ -56,11 +57,11 @@ fn main() {
         .unwrap()
         .response_blocking()
     {
-        UserResponse::Action(key) if key == "default" => println!("default"),
-        UserResponse::Action(key) if key == "clicked_a" => println!("clicked a"),
-        UserResponse::Action(key) if key == "clicked_b" => println!("clicked b"),
-        UserResponse::Action(other) => println!("unknown action: {other}"),
-        UserResponse::Reply(text) => println!("replied: {text}"),
-        UserResponse::Closed(reason) => println!("closed: {reason:?}"),
+        UserResponse::Action(key) if key == "default" => log::info!("default"),
+        UserResponse::Action(key) if key == "clicked_a" => log::info!("clicked a"),
+        UserResponse::Action(key) if key == "clicked_b" => log::info!("clicked b"),
+        UserResponse::Action(other) => log::info!("unknown action: {other}"),
+        UserResponse::Reply(text) => log::info!("replied: {text}"),
+        UserResponse::Closed(reason) => log::info!("closed: {reason:?}"),
     }
 }

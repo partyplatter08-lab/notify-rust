@@ -23,14 +23,10 @@
 //! | Timeout support | No | Yes |
 //! | Authorization request | No | Yes (`request_auth`) |
 
-
 /// Items that belong exclusively to the legacy `NSUserNotificationCenter` path.
 #[cfg(not(feature = "pure_usernotifications"))]
 pub mod legacy {
-    use crate::{
-        action::UserResponse, error::*, notification::Notification, ActionResponse,
-        ActionResponseHandler, CloseHandler, CloseReason,
-    };
+    use crate::{error::*, notification::Notification};
     use std::ops::{Deref, DerefMut};
 
     pub use mac_notification_sys::error::{
@@ -41,51 +37,42 @@ pub mod legacy {
 
     /// A handle to a sent notification (`NSUserNotificationCenter` path).
     ///
-    /// `NSUserNotificationCenter` delivers the user's response synchronously
-    /// inside `send()`, so by the time you hold this handle the response is
-    /// already available.  There is no async path and no close-by-ID API on
-    /// this legacy stack.
+    /// This stack is deprecated. Prefer enabling the `pure_usernotifications`
+    /// feature to use `UNUserNotificationCenter` instead.
     #[derive(Debug)]
     pub struct NotificationHandle {
         notification: Notification,
-        response: LegacyResponse,
     }
 
     impl NotificationHandle {
-        pub(crate) fn new(notification: Notification, response: LegacyResponse) -> Self {
-            Self {
-                notification,
-                response,
-            }
+        pub(crate) fn new(notification: Notification) -> Self {
+            Self { notification }
         }
 
-        /// Returns the user's response.
+        /// Wait for the user to interact with the notification.
         ///
-        /// Because `NSUserNotificationCenter` is synchronous, the response is
-        /// already resolved — this is not a future.
-        pub fn response_blocking(&self) -> UserResponse {
-            legacy_response_to_user_response(&self.response)
-        }
-
-        /// Call `invocation_closure` with the action the user took.
-        pub fn wait_for_action(self, invocation_closure: impl ActionResponseHandler) {
-            invocation_closure.call(&legacy_response_to_action_response(&self.response));
-        }
-
-        /// Call `handler` if the notification was dismissed without interaction.
-        pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
-            if matches!(
-                legacy_response_to_action_response(&self.response),
-                ActionResponse::Closed(_)
-            ) {
-                handler.call(CloseReason::Dismissed);
+        /// The closure receives the action identifier as a `&str`. The special
+        /// value `"__closed"` cannot be reliably detected on this legacy stack
+        /// and will be removed in 5.0. Prefer the `pure_usernotifications`
+        /// feature for proper response handling.
+        #[deprecated(
+            since = "4.1.0",
+            note = "enable the pure_usernotifications feature for proper response handling; the legacy NSUserNotificationCenter path will be removed in 5.0"
+        )]
+        pub fn wait_for_action<F>(self, invocation_closure: F)
+        where
+            F: FnOnce(&str),
+        {
+            let mut n = build_mac_notification(&self.notification);
+            n.wait_for_click(true);
+            match n.send().unwrap_or(LegacyResponse::None) {
+                LegacyResponse::ActionButton(ref label) => invocation_closure(label),
+                LegacyResponse::Click => invocation_closure("default"),
+                LegacyResponse::Reply(ref text) => invocation_closure(text),
+                LegacyResponse::CloseButton(_) | LegacyResponse::None => {
+                    invocation_closure("__closed")
+                }
             }
-        }
-
-        /// Re-send the notification with any mutations applied via `DerefMut`.
-        pub fn update(&mut self) -> Result<()> {
-            show_notification(&self.notification)?;
-            Ok(())
         }
     }
 
@@ -103,23 +90,9 @@ pub mod legacy {
         }
     }
 
-    fn legacy_response_to_action_response(resp: &LegacyResponse) -> ActionResponse {
-        match resp {
-            LegacyResponse::ActionButton(label) => ActionResponse::Action(label.clone()),
-            LegacyResponse::Click => ActionResponse::Action("default".to_owned()),
-            LegacyResponse::None => ActionResponse::Closed(CloseReason::Dismissed),
-        }
-    }
-
-    fn legacy_response_to_user_response(resp: &LegacyResponse) -> UserResponse {
-        match resp {
-            LegacyResponse::ActionButton(label) => UserResponse::Action(label.clone()),
-            LegacyResponse::Click => UserResponse::Action("default".to_owned()),
-            LegacyResponse::None => UserResponse::Closed(CloseReason::Dismissed),
-        }
-    }
-
-    pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
+    fn build_mac_notification(
+        notification: &Notification,
+    ) -> mac_notification_sys::Notification<'_> {
         let mut n = mac_notification_sys::Notification::default();
         n.title(notification.summary.as_str())
             .message(&notification.body)
@@ -129,30 +102,23 @@ pub mod legacy {
         if let Some(ref image_path) = notification.path_to_image {
             n.content_image(image_path);
         }
+        n
+    }
 
-        let response = n.send()?;
-
-        Ok(NotificationHandle::new(notification.clone(), response))
+    pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
+        let n = build_mac_notification(notification);
+        n.send()?;
+        Ok(NotificationHandle::new(notification.clone()))
     }
 
     pub(crate) fn schedule_notification(
         notification: &Notification,
         delivery_date: f64,
     ) -> Result<NotificationHandle> {
-        let mut n = mac_notification_sys::Notification::default();
-        n.title(notification.summary.as_str())
-            .message(&notification.body)
-            .maybe_subtitle(notification.subtitle.as_deref())
-            .maybe_sound(notification.sound_name.as_deref())
-            .delivery_date(delivery_date);
-
-        if let Some(ref image_path) = notification.path_to_image {
-            n.content_image(image_path);
-        }
-
-        let response = n.send()?;
-
-        Ok(NotificationHandle::new(notification.clone(), response))
+        let mut n = build_mac_notification(notification);
+        n.delivery_date(delivery_date);
+        n.send()?;
+        Ok(NotificationHandle::new(notification.clone()))
     }
 }
 
@@ -161,12 +127,11 @@ pub mod legacy {
 #[cfg(feature = "pure_usernotifications")]
 pub mod pure_usernotifications {
     use crate::{
-        action::UserResponse,
-        error::*, notification::Notification, ActionResponse, ActionResponseHandler, CloseHandler,
-        CloseReason, Timeout,
+        action::UserResponse, error::*, notification::Notification, ActionResponse,
+        ActionResponseHandler, CloseHandler, CloseReason, Timeout,
     };
-    pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
     use mac_usernotifications::Sound;
+    pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
     use std::{ops::Deref, time::Duration};
 
     /// A handle to a sent notification (`UNUserNotificationCenter` path).
@@ -221,10 +186,37 @@ pub mod pure_usernotifications {
             }
         }
 
+        /// Call `invocation_closure` with the action the user took (old `&str` API).
+        ///
+        /// This is the legacy compatibility overload. The closure receives the
+        /// action identifier as a plain `&str`. Use [`wait_for_action_response`]
+        /// or [`response_blocking`](Self::response_blocking) for the modern API.
+        ///
+        /// The special value `"__closed"` is passed when the notification is
+        /// dismissed without any action. This sentinel will be removed in 5.0.
+        // #[deprecated(
+        //     since = "4.1.18",
+        //     note = "use response_blocking() or wait_for_action_response(); \"__closed\" sentinel will be removed in 5.0"
+        // )]
+        pub fn wait_for_action<F>(self, invocation_closure: F)
+        where
+            F: FnOnce(&str),
+        {
+            let action = match self.inner.response_blocking() {
+                Ok(ref resp) => mac_response_to_action_response(resp),
+                Err(_) => ActionResponse::Closed(CloseReason::Expired),
+            };
+            match &action {
+                ActionResponse::Action(key) => invocation_closure(key),
+                ActionResponse::Reply(text) => invocation_closure(text),
+                ActionResponse::Closed(_reason) => invocation_closure("__closed"),
+            }
+        }
+
         /// Call `invocation_closure` with the action the user took.
         ///
         /// Blocks until the user responds or the timeout elapses.
-        pub fn wait_for_action(self, invocation_closure: impl ActionResponseHandler) {
+        pub fn wait_for_action_response(self, invocation_closure: impl ActionResponseHandler) {
             let action = match self.inner.response_blocking() {
                 Ok(ref resp) => mac_response_to_action_response(resp),
                 Err(_) => ActionResponse::Closed(CloseReason::Expired),

@@ -1,22 +1,12 @@
+mod common;
+
 #[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::{Notification, UserResponse};
 
-    cfg_select! {
-        feature = "pure_usernotifications" => {
-            notify_rust::request_auth_blocking().unwrap();
-        }
-        not(feature = "pure_usernotifications") => {
-            let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
-            notify_rust::set_application(&bundle_id).unwrap();
-        }
+    if !common::setup() {
+        return Ok(());
     }
-
-    // a bundled app can not log to stdout
-    oslog::OsLogger::new("notify-rust")
-        .level_filter(log::LevelFilter::Debug)
-        .init()
-        .unwrap();
 
     Notification::new()
         .summary("Safari Crashed")

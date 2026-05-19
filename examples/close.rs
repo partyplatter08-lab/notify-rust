@@ -1,9 +1,15 @@
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(any(
+    target_os = "windows",
+    all(target_os = "macos", not(feature = "pure_usernotifications"))
+))]
 fn main() {
     println!("this is a xdg only feature")
 }
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(any(
+    all(unix, not(target_os = "macos")),
+    all(target_os = "macos", feature = "pure_usernotifications")
+))]
 fn main() {
     use notify_rust::*;
     fn wait_for_keypress(msg: &str) {
