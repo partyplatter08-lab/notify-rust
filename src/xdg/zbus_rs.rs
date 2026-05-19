@@ -1,6 +1,6 @@
 use crate::{
-    action::UserResponse,
-    error::*, notification::Notification, xdg, ActionResponse, ActionResponseHandler, CloseReason,
+    action::UserResponse, error::*, notification::Notification, xdg, ActionResponse,
+    ActionResponseHandler, CloseReason,
 };
 use futures_lite::stream::StreamExt;
 use zbus::MatchRule;
@@ -180,10 +180,14 @@ pub(crate) async fn connect_and_send_notification_at_bus(
     bus: NotificationBus,
 ) -> Result<ZbusNotificationHandle> {
     let connection = zbus::Connection::session().await?;
-    let inner_id = notification.id.as_ref().and_then(|nid| match nid {
-        crate::NotificationId::Xdg(num) => Some(*num),
-        _ => None,
-    }).unwrap_or(0);
+    let inner_id = notification
+        .id
+        .as_ref()
+        .and_then(|nid| match nid {
+            crate::NotificationId::Xdg(num) => Some(*num),
+            _ => None,
+        })
+        .unwrap_or(0);
     let id =
         send_notification_via_connection_at_bus(notification, inner_id, &connection, bus).await?;
 

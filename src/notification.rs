@@ -1,14 +1,14 @@
 #[cfg(target_os = "macos")]
 use crate::NotificationHandle;
 
+#[cfg(all(unix, target_os = "macos"))]
+use crate::Hint;
 #[cfg(all(unix, not(target_os = "macos")))]
 use crate::{
     hints::{CustomHintType, Hint},
     urgency::Urgency,
     xdg,
 };
-#[cfg(all(unix, target_os = "macos"))]
-use crate::Hint;
 
 #[cfg(all(unix, not(target_os = "macos"), feature = "images_no_default_features"))]
 use crate::image::Image;

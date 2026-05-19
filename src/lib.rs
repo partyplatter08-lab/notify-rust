@@ -194,7 +194,9 @@ mod xdg;
 #[cfg(all(feature = "images_no_default_features", unix, not(target_os = "macos")))]
 mod image;
 
-pub use crate::action::{ActionResponse, ActionResponseHandler, CloseHandler, CloseReason, UserResponse};
+pub use crate::action::{
+    ActionResponse, ActionResponseHandler, CloseHandler, CloseReason, UserResponse,
+};
 
 #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
 pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};

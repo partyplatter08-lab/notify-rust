@@ -8,7 +8,10 @@ fn main() {
 }
 
 // linux and mac, but on mac only with `"pure_usernotifications"` feature
-#[cfg(any(target_os = "linux", all(target_os = "macos", feature = "pure_usernotifications")))]
+#[cfg(any(
+    target_os = "linux",
+    all(target_os = "macos", feature = "pure_usernotifications")
+))]
 fn main() {
     common::setup();
     Notification::new()

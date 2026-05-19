@@ -7,7 +7,10 @@ use dbus::ffidisp::Connection as DbusConnection;
 #[cfg(feature = "zbus")]
 use zbus::{block_on, zvariant};
 
-use crate::{action::UserResponse, error::*, notification::Notification, ActionResponse, CloseHandler, CloseReason};
+use crate::{
+    action::UserResponse, error::*, notification::Notification, ActionResponse, CloseHandler,
+    CloseReason,
+};
 
 use std::ops::{Deref, DerefMut};
 
@@ -139,10 +142,7 @@ impl NotificationHandle {
     ///
     /// Prefer [`response`](Self::response) which returns a future resolving to
     /// `Option<UserResponse>` — cleaner and composable with `select!` etc.
-    #[deprecated(
-        since = "4.1.18",
-        note = "use handle.response().await instead"
-    )]
+    #[deprecated(since = "4.1.18", note = "use handle.response().await instead")]
     pub fn wait_for_action_response<F>(self, invocation_closure: F)
     where
         F: FnOnce(&ActionResponse),

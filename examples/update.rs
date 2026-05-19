@@ -1,26 +1,12 @@
-mod common;
-
+#![allow(dead_code)]
+use notify_rust::Notification;
 use std::time::Duration;
+
+mod common;
 
 #[cfg(target_os = "windows")]
 fn main() {
-    println!("this is not a windows feature")
-}
-
-#[cfg(any(
-    all(unix, not(target_os = "macos")),
-    all(target_os = "macos", feature = "pure_usernotifications")
-))]
-fn main() {
-    if !common::setup() {
-        return;
-    }
-
-    // use the handle to update a notification
-    update_via_handle();
-
-    // or store the id yourself
-    update_via_stored_id();
+    println!("This is not a windows feature")
 }
 
 #[cfg(any(
@@ -28,8 +14,6 @@ fn main() {
     all(target_os = "macos", feature = "pure_usernotifications")
 ))]
 fn update_via_handle() {
-    use notify_rust::Notification;
-
     let mut notification_handle = Notification::new()
         .summary("First Notification")
         .body("This notification will be changed!")
@@ -40,12 +24,11 @@ fn update_via_handle() {
     std::thread::sleep(Duration::from_millis(1_500));
 
     notification_handle
-        .appname("foo") // changing appname keeps plasma from merging old and new
+        .appname("foo") // changing appname to keep plasma from merging the new and the old one
         .icon("dialog-ok")
-        .body("<b>This</b> has been changed through the handle");
+        .body("<b>This</b> has been changed through the notification_handle");
 
-    notification_handle.update().unwra
-    p();
+    notification_handle.update().unwrap();
 }
 
 #[cfg(any(
@@ -53,8 +36,6 @@ fn update_via_handle() {
     all(target_os = "macos", feature = "pure_usernotifications")
 ))]
 fn update_via_stored_id() {
-    use notify_rust::Notification;
-
     let handle = Notification::new()
         .summary("First Notification")
         .body("This notification will be changed!")
@@ -74,7 +55,44 @@ fn update_via_stored_id() {
         .unwrap();
 }
 
+#[cfg(any(
+    all(unix, not(target_os = "macos")),
+    all(target_os = "macos", feature = "pure_usernotifications")
+))]
+fn recycling_one_id() {
+    for i in 1..5 {
+        let recycled_id: u32 = 6666; // you should probably not do this at all
+        std::thread::sleep(Duration::from_millis(500));
+        Notification::new()
+            .icon("dialog-ok")
+            .body(&format!("notification {i}"))
+            .id(recycled_id)
+            .show()
+            .unwrap();
+    }
+}
+
 #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
 fn main() {
     println!("this example requires the `pure_usernotifications` feature on macOS");
+}
+
+#[cfg(any(
+    all(unix, not(target_os = "macos")),
+    all(target_os = "macos", feature = "pure_usernotifications")
+))]
+fn main() {
+    if !common::setup() {
+        return;
+    }
+
+    // please use the handle to update a notification
+    update_via_handle();
+
+    // If you really have to, store the id yourself
+    update_via_stored_id();
+
+    // or recycle a hardcoded id (not recommended)
+    // #[cfg(all(unix, not(target_os = "macos")))]
+    recycling_one_id();
 }

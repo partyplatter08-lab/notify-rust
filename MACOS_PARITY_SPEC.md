@@ -238,26 +238,26 @@ versus what `UNUserNotificationCenter` (via `mac-usernotifications`) provides.
 
 ### `Notification` builder
 
-| method              | legacy (`NSUserNotif.`) | `pure_usernotifications` |
-|---------------------|-------------------------|--------------------------|
-| `fn summary(...)`   | ✅                      | ✅                       |
-| `fn subtitle(...)`  | ✅                      | ✅                       |
-| `fn body(...)`      | ✅                      | ✅                       |
-| `fn image_path(...)`| ✅ (content image)      | ✅ (attachment)          |
-| `fn action(...)`    | ✅ (main button only)   | ✅ (multiple buttons)    |
-| `fn sound(...)`     | ✅                      | ✅                       |
-| `fn timeout(...)`   | ❌                      | ✅                       |
-| `fn id(...)`        | ❌                      | ✅ (string id)           |
-| `fn thread_id(...)` | ❌                      | ✅                       |
-| `fn schedule_in(...)` | ✅ (delivery date)    | ✅ (time interval)       |
-| `fn show_async(...)`| ❌                      | ✅                       |
-| reply actions       | ❌                      | ✅                       |
-| image attachments   | ✅                      | ✅                       |
+| method                | legacy (`NSUserNotif.`) | `pure_usernotifications` |
+| --------------------- | ----------------------- | ------------------------ |
+| `fn summary(...)`     | ✅                      | ✅                       |
+| `fn subtitle(...)`    | ✅                      | ✅                       |
+| `fn body(...)`        | ✅                      | ✅                       |
+| `fn image_path(...)`  | ✅ (content image)      | ✅ (attachment)          |
+| `fn action(...)`      | ✅ (main button only)   | ✅ (multiple buttons)    |
+| `fn sound(...)`       | ✅                      | ✅                       |
+| `fn timeout(...)`     | ❌                      | ✅                       |
+| `fn id(...)`          | ❌                      | ✅ (string id)           |
+| `fn thread_id(...)`   | ❌                      | ✅                       |
+| `fn schedule_in(...)` | ✅ (delivery date)      | ✅ (time interval)       |
+| `fn show_async(...)`  | ❌                      | ✅                       |
+| reply actions         | ❌                      | ✅                       |
+| image attachments     | ✅                      | ✅                       |
 
 ### `NotificationHandle`
 
 | method                          | legacy | `pure_usernotifications` |
-|---------------------------------|--------|--------------------------|
+| ------------------------------- | ------ | ------------------------ |
 | `fn wait_for_action(...)`       | ❌     | ✅                       |
 | `fn wait_for_action_async(...)` | ❌     | ✅                       |
 | `fn on_close(...)`              | ❌     | ✅                       |
