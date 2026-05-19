@@ -201,8 +201,10 @@ pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application
 #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
 pub use macos::pure_usernotifications::{request_auth, request_auth_blocking};
 
-#[cfg(target_os = "macos")]
-pub use macos::NotificationHandle;
+#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+pub use macos::legacy::NotificationHandle;
+#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+pub use macos::pure_usernotifications::NotificationHandle;
 
 #[cfg(all(
     any(feature = "dbus", feature = "zbus"),
