@@ -1,4 +1,5 @@
 use crate::{
+    action::UserResponse,
     error::*, notification::Notification, xdg, ActionResponse, ActionResponseHandler, CloseReason,
 };
 use futures_lite::stream::StreamExt;
@@ -81,6 +82,11 @@ impl ZbusNotificationHandle {
 
     pub async fn wait_for_action(&self, invocation_closure: impl ActionResponseHandler) {
         wait_for_action_signal(&self.connection, self.id, invocation_closure).await;
+    }
+
+    /// Returns a future that resolves to the user's [`UserResponse`].
+    pub async fn response(&self) -> UserResponse {
+        response_signal(&self.connection, self.id).await
     }
 
     pub async fn close_fallible(&self) -> Result<()> {
@@ -237,6 +243,54 @@ pub async fn handle_action(id: u32, func: impl ActionResponseHandler) {
     wait_for_action_signal(&connection, id, func).await;
 }
 
+async fn response_signal(connection: &zbus::Connection, id: u32) -> UserResponse {
+    let action_signal_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface(xdg::NOTIFICATION_INTERFACE)
+        .unwrap()
+        .member("ActionInvoked")
+        .unwrap()
+        .build();
+
+    let proxy = zbus::fdo::DBusProxy::new(connection).await.unwrap();
+    proxy.add_match_rule(action_signal_rule).await.unwrap();
+
+    let close_signal_rule = MatchRule::builder()
+        .msg_type(zbus::message::Type::Signal)
+        .interface(xdg::NOTIFICATION_INTERFACE)
+        .unwrap()
+        .member("NotificationClosed")
+        .unwrap()
+        .build();
+    proxy.add_match_rule(close_signal_rule).await.unwrap();
+
+    while let Ok(Some(msg)) = zbus::MessageStream::from(connection).try_next().await {
+        let header = msg.header();
+        if let zbus::message::Type::Signal = header.message_type() {
+            match header.member() {
+                Some(name) if name == "ActionInvoked" => {
+                    match msg.body().deserialize::<(u32, String)>() {
+                        Ok((nid, action)) if nid == id => {
+                            return UserResponse::Action(action);
+                        }
+                        _ => {}
+                    }
+                }
+                Some(name) if name == "NotificationClosed" => {
+                    match msg.body().deserialize::<(u32, u32)>() {
+                        Ok((nid, reason)) if nid == id => {
+                            return UserResponse::Closed(reason.into());
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    UserResponse::Closed(CloseReason::Dismissed)
+}
+
 async fn wait_for_action_signal(
     connection: &zbus::Connection,
     id: u32,
@@ -269,7 +323,7 @@ async fn wait_for_action_signal(
                 Some(name) if name == "ActionInvoked" => {
                     match msg.body().deserialize::<(u32, String)>() {
                         Ok((nid, action)) if nid == id => {
-                            handler.call(&ActionResponse::Custom(&action));
+                            handler.call(&ActionResponse::Action(action));
                             break;
                         }
                         _ => {}

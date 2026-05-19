@@ -303,7 +303,7 @@ fn wait_for_action_signal(
                         (&items[0], &items[1])
                     {
                         if nid == id {
-                            handler.call(&ActionResponse::Custom(action));
+                            handler.call(&ActionResponse::Action(action.to_owned()));
                             break;
                         }
                     }

@@ -82,6 +82,7 @@ pub mod legacy {
 #[cfg(feature = "pure_usernotifications")]
 pub mod pure_usernotifications {
     use crate::{
+        action::UserResponse,
         error::*, notification::Notification, ActionResponse, ActionResponseHandler, CloseHandler,
         CloseReason, Timeout,
     };
@@ -112,6 +113,32 @@ pub mod pure_usernotifications {
                 response_to_action_response,
             );
             invocation_closure.call(&action);
+        }
+
+        /// Returns the user's response, or `None` if the notification was
+        /// dismissed without interaction.
+        ///
+        /// On macOS this is not a true future — the response is already
+        /// available synchronously after `show()` returns. The `async fn`
+        /// signature is provided so call sites look identical across platforms.
+        pub async fn response(&self) -> UserResponse {
+            self.response_blocking()
+        }
+
+        /// Blocking version of [`response`](Self::response).
+        pub fn response_blocking(&self) -> UserResponse {
+            self.response.as_ref().map_or(
+                UserResponse::Closed(CloseReason::Dismissed),
+                |resp| {
+                    if resp.is_dismiss_action() {
+                        UserResponse::Closed(CloseReason::Dismissed)
+                    } else if let Some(ref text) = resp.reply_text {
+                        UserResponse::Reply(text.clone())
+                    } else {
+                        UserResponse::Action(resp.action_identifier.clone())
+                    }
+                },
+            )
         }
 
         pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
@@ -165,13 +192,13 @@ pub mod pure_usernotifications {
         }
     }
 
-    fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse<'_> {
+    fn response_to_action_response(resp: &NotificationResponse) -> ActionResponse {
         if resp.is_dismiss_action() {
             ActionResponse::Closed(CloseReason::Dismissed)
         } else if let Some(ref text) = resp.reply_text {
-            ActionResponse::Custom(text.as_str())
+            ActionResponse::Reply(text.clone())
         } else {
-            ActionResponse::Custom(resp.action_identifier.as_str())
+            ActionResponse::Action(resp.action_identifier.clone())
         }
     }
 
@@ -260,125 +287,10 @@ pub mod pure_usernotifications {
     }
 }
 
-use crate::{error::Result, notification::Notification, ActionResponse, CloseHandler};
-use std::ops::{Deref, DerefMut};
-
-/// A handle to a shown macOS notification.
-///
-/// Exposes [`wait_for_action`](NotificationHandle::wait_for_action) with a
-/// `FnOnce(&str)` closure, mirroring the public XDG `NotificationHandle`.
-/// The inner backend handle (which uses [`ActionResponseHandler`][crate::ActionResponseHandler])
-/// is kept internal.
-#[derive(Debug)]
-pub struct NotificationHandle {
-    #[cfg(feature = "pure_usernotifications")]
-    inner: pure_usernotifications::NotificationHandle,
-    #[cfg(not(feature = "pure_usernotifications"))]
-    inner: legacy::NotificationHandle,
-}
-
-#[cfg(feature = "pure_usernotifications")]
-impl From<pure_usernotifications::NotificationHandle> for NotificationHandle {
-    fn from(inner: pure_usernotifications::NotificationHandle) -> Self {
-        Self { inner }
-    }
-}
-
 #[cfg(not(feature = "pure_usernotifications"))]
-impl From<legacy::NotificationHandle> for NotificationHandle {
-    fn from(inner: legacy::NotificationHandle) -> Self {
-        Self { inner }
-    }
-}
-
-impl NotificationHandle {
-    /// Waits for the user to act on a notification, then calls
-    /// `invocation_closure` with the action identifier string.
-    ///
-    /// The special identifier `"__closed"` is passed when the notification
-    /// is dismissed without an action.
-    #[cfg(feature = "pure_usernotifications")]
-    pub fn wait_for_action<F>(self, invocation_closure: F)
-    where
-        F: FnOnce(&str),
-    {
-        self.inner
-            .wait_for_action(|action: &ActionResponse| match action {
-                ActionResponse::Custom(action_str) => invocation_closure(action_str),
-                ActionResponse::Closed(_) => invocation_closure("__closed"),
-            });
-    }
-
-    /// On the legacy backend actions are not supported, so `invocation_closure`
-    /// is called immediately with `"__closed"`.
-    #[cfg(not(feature = "pure_usernotifications"))]
-    pub fn wait_for_action<F>(self, invocation_closure: F)
-    where
-        F: FnOnce(&str),
-    {
-        invocation_closure("__closed");
-    }
-
-    #[cfg(feature = "pure_usernotifications")]
-    pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
-        self.inner.on_close(handler);
-    }
-
-    #[cfg(feature = "pure_usernotifications")]
-    pub fn update(&mut self) -> Result<()> {
-        self.inner.update()
-    }
-
-    #[cfg(feature = "pure_usernotifications")]
-    pub async fn update_async(&mut self) -> Result<()> {
-        self.inner.update_async().await
-    }
-}
-
-impl Deref for NotificationHandle {
-    type Target = Notification;
-    fn deref(&self) -> &Notification {
-        &*self.inner
-    }
-}
-
-impl DerefMut for NotificationHandle {
-    fn deref_mut(&mut self) -> &mut Notification {
-        &mut *self.inner
-    }
-}
-
-#[cfg(not(feature = "pure_usernotifications"))]
-pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
-    legacy::show_notification(notification).map(Into::into)
-}
-
-#[cfg(not(feature = "pure_usernotifications"))]
-pub(crate) fn schedule_notification(
-    notification: &Notification,
-    delivery_date: f64,
-) -> Result<NotificationHandle> {
-    legacy::schedule_notification(notification, delivery_date).map(Into::into)
-}
+pub(crate) use legacy::{schedule_notification, show_notification};
 
 #[cfg(feature = "pure_usernotifications")]
-pub(crate) fn show_notification(notification: &Notification) -> Result<NotificationHandle> {
-    pure_usernotifications::show_notification(notification).map(Into::into)
-}
-
-#[cfg(feature = "pure_usernotifications")]
-pub(crate) fn schedule_notification(
-    notification: &Notification,
-    delivery_date: f64,
-) -> Result<NotificationHandle> {
-    pure_usernotifications::schedule_notification(notification, delivery_date).map(Into::into)
-}
-
-#[cfg(feature = "pure_usernotifications")]
-pub(crate) async fn show_notification_async(
-    notification: &Notification,
-) -> Result<NotificationHandle> {
-    pure_usernotifications::show_notification_async(notification)
-        .await
-        .map(Into::into)
-}
+pub(crate) use pure_usernotifications::{
+    schedule_notification, show_notification, show_notification_async,
+};

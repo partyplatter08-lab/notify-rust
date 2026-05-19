@@ -2,7 +2,7 @@
 fn main() {
     use futures_lite::future::zip;
     use mac_usernotifications::block_on_main;
-    use notify_rust::{ActionResponse, Notification};
+    use notify_rust::{Notification, UserResponse};
 
     cfg_select! {
         feature = "pure_usernotifications" => {
@@ -59,21 +59,23 @@ fn main() {
     }
 
     if let Ok(handle) = result_a {
-        handle.wait_for_action(|action| match action {
-            ActionResponse::Custom("clicked_a") => println!("clicked OK"),
-            ActionResponse::Closed(_) => println!("notification A was closed"),
-            ActionResponse::Custom(other) => println!("notification A: unknown action: {other}"),
-        });
+        match handle.response_blocking() {
+            UserResponse::Action(key) if key == "clicked_a" => println!("clicked OK"),
+            UserResponse::Action(other) => println!("notification A: unknown action: {other}"),
+            UserResponse::Reply(text) => println!("notification A: reply: {text}"),
+            UserResponse::Closed(_) => println!("notification A was closed"),
+        }
     }
 
     if let Ok(handle) = result_b {
-        handle.wait_for_action(|action| match action {
-            ActionResponse::Custom("clicked_a") => println!("clicked a"),
-            ActionResponse::Custom("clicked_b") => println!("clicked b"),
-            ActionResponse::Custom("clicked_c") => println!("clicked c"),
-            ActionResponse::Closed(_) => println!("notification B was closed"),
-            ActionResponse::Custom(other) => println!("notification B - unknown action: {other}"),
-        });
+        match handle.response_blocking() {
+            UserResponse::Action(key) if key == "clicked_a" => println!("clicked a"),
+            UserResponse::Action(key) if key == "clicked_b" => println!("clicked b"),
+            UserResponse::Action(key) if key == "clicked_c" => println!("clicked c"),
+            UserResponse::Action(other) => println!("notification B - unknown action: {other}"),
+            UserResponse::Reply(text) => println!("notification B - reply: {text}"),
+            UserResponse::Closed(_) => println!("notification B was closed"),
+        }
     }
 }
 

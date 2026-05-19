@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use notify_rust::{Hint, Notification, Timeout};
+use notify_rust::{Hint, Notification, Timeout, UserResponse};
 mod common;
 
 #[cfg(target_os = "windows")]
@@ -42,4 +42,25 @@ fn main() {
             "__closed" => println!("the notification was closed"),
             _ => (),
         });
+
+    // new API: response_blocking() returns a UserResponse directly
+    match Notification::new()
+        .summary("click me")
+        .body("Using the new response API")
+        .action("default", "default")
+        .action("clicked_a", "button a")
+        .action("clicked_b", "button b")
+        .hint(Hint::Resident(true))
+        .timeout(Timeout::Never)
+        .show()
+        .unwrap()
+        .response_blocking()
+    {
+        UserResponse::Action(key) if key == "default" => println!("default"),
+        UserResponse::Action(key) if key == "clicked_a" => println!("clicked a"),
+        UserResponse::Action(key) if key == "clicked_b" => println!("clicked b"),
+        UserResponse::Action(other) => println!("unknown action: {other}"),
+        UserResponse::Reply(text) => println!("replied: {text}"),
+        UserResponse::Closed(reason) => println!("closed: {reason:?}"),
+    }
 }

@@ -1,6 +1,6 @@
 #[cfg(target_os = "macos")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use notify_rust::{ActionResponse, Notification};
+    use notify_rust::{Notification, UserResponse};
 
     cfg_select! {
         feature = "pure_usernotifications" => {
@@ -38,11 +38,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .show();
 
     if let Ok(handle) = result_a {
-        handle.wait_for_action(|action| match action {
-            ActionResponse::Custom("clicked_a") => println!("clicked OK"),
-            ActionResponse::Closed(_) => println!("the notification was closed"),
-            ActionResponse::Custom(other) => println!("unknown action: {other}"),
-        });
+        match handle.response_blocking() {
+            UserResponse::Action(key) if key == "clicked_a" => println!("clicked OK"),
+            UserResponse::Action(other) => println!("unknown action: {other}"),
+            UserResponse::Reply(text) => println!("reply: {text}"),
+            UserResponse::Closed(_) => println!("the notification was closed"),
+        }
     }
 
     let result_b = Notification::new()
@@ -54,13 +55,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .show();
 
     if let Ok(handle) = result_b {
-        handle.wait_for_action(|action| match action {
-            ActionResponse::Custom("clicked_a") => println!("clicked a"),
-            ActionResponse::Custom("clicked_b") => println!("clicked b"),
-            ActionResponse::Custom("clicked_c") => println!("clicked c"),
-            ActionResponse::Closed(_) => println!("the notification was closed"),
-            ActionResponse::Custom(other) => println!("unknown action: {other}"),
-        });
+        match handle.response_blocking() {
+            UserResponse::Action(key) if key == "clicked_a" => println!("clicked a"),
+            UserResponse::Action(key) if key == "clicked_b" => println!("clicked b"),
+            UserResponse::Action(key) if key == "clicked_c" => println!("clicked c"),
+            UserResponse::Action(other) => println!("unknown action: {other}"),
+            UserResponse::Reply(text) => println!("reply: {text}"),
+            UserResponse::Closed(_) => println!("the notification was closed"),
+        }
     }
     Ok(())
 }
