@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 #[cfg(target_os = "macos")]
 pub fn setup() -> bool {
     cfg_select! {
@@ -37,4 +39,32 @@ pub fn setup() -> bool {
 pub fn setup() {
     #[cfg(feature = "env_logger")]
     env_logger::init();
+}
+
+pub fn wait_for_keypress(msg: &str) {
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    log::info!("{msg}");
+
+    let (sender, receiver) = mpsc::channel();
+
+    let timeout_sender = sender.clone();
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(4));
+        let _ = timeout_sender.send(());
+    });
+
+    // NOTE: the stdin thread will keep blocking after the timeout.
+    // There is no portable way to cancel a blocking read, so
+    // the thread is intentionally leaked here. This is fine for an example.
+    thread::spawn(move || {
+        let mut line = String::new();
+        if std::io::stdin().read_line(&mut line).is_ok() && !line.is_empty() {
+            let _ = sender.send(());
+        }
+    });
+
+    let _ = receiver.recv();
 }

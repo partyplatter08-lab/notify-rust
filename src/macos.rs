@@ -166,6 +166,11 @@ pub mod pure_usernotifications {
             self.inner.notification_id()
         }
 
+        /// Returns the handle's id.
+        pub fn id(&self) -> crate::NotificationId {
+            crate::NotificationId::Mac(self.inner.notification_id().to_owned())
+        }
+
         /// Wait for the user's response.
         ///
         /// Returns as soon as the user interacts with the notification or the
@@ -253,6 +258,13 @@ pub mod pure_usernotifications {
             self.notification.id = Some(crate::NotificationId::Mac(nid));
             show_notification_async(&self.notification).await?;
             Ok(())
+        }
+
+        /// Close the delivered notification.
+        ///
+        /// Removes the notification from Notification Center.
+        pub fn close(&self) {
+            mac_usernotifications::close_delivered_blocking(self.inner.notification_id());
         }
     }
 

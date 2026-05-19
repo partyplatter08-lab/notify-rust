@@ -1,21 +1,20 @@
+mod common;
+
 #[cfg(any(
     target_os = "windows",
     all(target_os = "macos", not(feature = "pure_usernotifications"))
 ))]
+
 fn main() {
     println!("this is a xdg only feature")
 }
-
 #[cfg(any(
     all(unix, not(target_os = "macos")),
     all(target_os = "macos", feature = "pure_usernotifications")
 ))]
 fn main() {
     use notify_rust::*;
-    fn wait_for_keypress(msg: &str) {
-        println!("{}", msg);
-        std::io::stdin().read_line(&mut String::new()).unwrap();
-    }
+    common::setup();
 
     let handle: NotificationHandle = Notification::new()
         .summary("oh no")
@@ -26,7 +25,7 @@ fn main() {
         .show()
         .unwrap();
 
-    wait_for_keypress("press to close notification");
+    common::wait_for_keypress("press to close notification");
     handle.close();
-    wait_for_keypress("press to exit");
+    common::wait_for_keypress("press to exit");
 }

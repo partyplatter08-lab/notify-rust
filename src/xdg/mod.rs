@@ -398,13 +398,13 @@ impl NotificationHandle {
         }
     }
 
-    /// Returns the Handle's id.
-    pub fn id(&self) -> u32 {
+    /// Returns the handle's id.
+    pub fn id(&self) -> crate::NotificationId {
         match self.inner {
             #[cfg(feature = "dbus")]
-            NotificationHandleInner::Dbus(ref inner) => inner.id,
+            NotificationHandleInner::Dbus(ref inner) => crate::NotificationId::Xdg(inner.id),
             #[cfg(feature = "zbus")]
-            NotificationHandleInner::Zbus(ref inner) => inner.id,
+            NotificationHandleInner::Zbus(ref inner) => crate::NotificationId::Xdg(inner.id),
         }
     }
 }
