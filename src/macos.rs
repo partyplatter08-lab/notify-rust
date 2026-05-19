@@ -9,17 +9,18 @@
 //! | Crate | `mac-notification-sys` | `mac-usernotifications` |
 //! | macOS requirement | Any supported macOS | macOS 10.14+ |
 //! | Bundle ID required | No | Yes (ad-hoc signature is enough) |
-//! | `show()` resolves | After user responds (synchronous) | Once delivered (before user responds) |
-//! | `response().await` | No — response already available on handle | Yes — true future, suspends until interaction |
-//! | `response_blocking()` | Yes | Yes |
-//! | `wait_for_action()` | Yes | Yes (blocks) |
-//! | `on_close()` | Yes | Yes (blocks) |
-//! | `update()` | Yes (re-sends by title, no stable ID) | Yes (re-sends by UUID) |
+//! | `show()` resolves | After user responds (blocking) | Once delivered (before user responds) |
+//! | `response().await` | No | Yes — true async, suspends until interaction |
+//! | `response_blocking()` | No | Yes |
+//! | `wait_for_action()` | Yes (deprecated) | Yes (deprecated) |
+//! | `wait_for_action_response()` | No | Yes |
+//! | `on_close()` | No | Yes |
+//! | `update()` | No | Yes (re-sends by UUID) |
 //! | `update_async()` | No | Yes |
 //! | `notification_id()` | No | Yes |
-//! | `close_delivered()` | No | Yes (via `notification_id()`) |
+//! | `close()` | No | Yes |
 //! | Reply actions | No | Yes |
-//! | Action buttons | Yes (single main button) | Yes (multiple) |
+//! | Action buttons | No | Yes (multiple) |
 //! | Timeout support | No | Yes |
 //! | Authorization request | No | Yes (`request_auth`) |
 
