@@ -119,7 +119,7 @@ the same platform (compile-time `cfg` switch).
 |---|-----------------|------------|-----------|
 | B1 | `Notification::show() -> Result<()>` on macOS legacy | `Notification::show() -> Result<NotificationHandle>` | drop `?;` semicolon, optionally inspect handle |
 | B2 | `Notification::show() -> Result<()>` on Windows | `Notification::show() -> Result<NotificationHandle>` | same |
-| B3 | `NotificationHandle::id() -> u32` (XDG) | `NotificationHandle::id() -> NotificationId` | match on `NotificationId::Xdg(u32)` / `Mac(String)` |
+| B3 | `NotificationHandle::id() -> u32` (XDG) | `NotificationHandle::id() -> NotificationId` | match on `NotificationId::Xdg(u32)` / `Mac(String)` / `Windows(String)` |
 | B4 | `wait_for_action<F: FnOnce(&str)>` (XDG + macOS) | removed | use `response_blocking()` and match on `UserResponse` |
 | B5 | `"__closed"` sentinel string | removed | match `UserResponse::Closed(CloseReason)` |
 | B6 | `wait_for_action_response` (added in 4.18) | removed | superseded by `response()` / `response_blocking()` |
@@ -135,6 +135,32 @@ The list of breaking changes is shorter than it looks because most callers
 only use `.show().unwrap()`; the unwrap continues to compile. The two
 practical pain points are `wait_for_action` callers and anyone who reads
 `handle.id()`.
+
+### Cross-platform ID opacity (5.0 goal)
+
+`NotificationId` must be the single opaque type returned by `handle.id()` on
+all three platforms. Today the enum has `Xdg(u32)` and `Mac(String)`; a
+`Windows(String)` variant needs to be added for the `win32` backend. This
+means callers never touch a raw `i32`, `u32`, or platform string directly.
+`close(id)` and `update(id)` work the same way regardless of backend.
+
+Required changes:
+- Add `NotificationId::Windows(String)` variant.
+- Return `NotificationId::Windows(tag)` from the `win32` `NotificationHandle::id()`.
+- Make sure `close` / `update` on the Windows handle accept a `NotificationId` rather than a raw tag string.
+
+### Unified `ActionResponse` across all platforms (5.0 goal)
+
+`ActionResponse` (`Action(String)`, `Reply(String)`, `Closed(CloseReason)`) is
+already defined in `src/action.rs` and is used by both XDG and macOS. The
+Windows backend currently has no handle and therefore no response path at all.
+In 5.0 it must use the same `ActionResponse` type so callers can write one
+`match` arm regardless of platform.
+
+Required changes:
+- Windows `NotificationHandle::response()` / `response_blocking()` must return `ActionResponse`.
+- Map Windows toast activation events to `ActionResponse::Action(key)` and dismiss events to `ActionResponse::Closed(CloseReason::Dismissed)` / `Expired` as appropriate.
+- No platform-specific response type should appear in public API.
 
 ### The 5.0 `NotificationHandle` (target shape)
 
