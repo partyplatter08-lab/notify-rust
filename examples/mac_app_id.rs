@@ -2,7 +2,7 @@
 fn main() -> Result<(), String> {
     use notify_rust::Notification;
 
-    #[cfg(not(feature = "pure_usernotifications"))]
+    #[cfg(feature = "macos_legacy")]
     {
         use notify_rust::{
             error::MacOsError, get_bundle_identifier_or_default, set_application, Notification,

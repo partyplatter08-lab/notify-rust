@@ -1,6 +1,11 @@
 mod common;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
+fn main() {
+    println!("this example requires the default macOS backend (UNUserNotificationCenter)");
+}
+
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::{Notification, UserResponse};
 

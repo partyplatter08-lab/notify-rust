@@ -1,14 +1,20 @@
-//! Demonstrates `on_close` on macOS using `UNUserNotificationCenter`.
+//! Demonstrates waiting for a notification to be dismissed on macOS using
+//! `UNUserNotificationCenter`.
 //!
-//! Important: the UN API only fires a dismiss callback when the notification
-//! has at least one action button.  A "Dismiss" button is added here so that
-//! swiping the banner away also triggers the callback.
+//! `response().await` resolves to `UserResponse::Closed` when the user swipes
+//! the banner away or clicks a "Dismiss" button.  At least one action button
+//! must be present for macOS to deliver a dismiss event; without actions the
+//! notification centre swallows the dismiss silently.
 //!
 //! Requires a valid app bundle:
 //!   cargo bundle --example on_close && open target/debug/bundle/osx/*.app
 
 #![allow(unused_imports, dead_code)]
 use notify_rust::Notification;
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
+use notify_rust::UserResponse;
+
+mod common;
 
 #[cfg(target_os = "windows")]
 fn main() {
@@ -39,63 +45,43 @@ fn main() {
     wait_for_keypress();
 }
 
-#[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 fn main() {
-    use mac_usernotifications::block_on_main;
-
-    oslog::OsLogger::new("de.hoodie.notify-rust.example")
-        .level_filter(log::LevelFilter::Debug)
-        .init()
-        .unwrap();
-
-    block_on_main(async {
-        match mac_usernotifications::request_auth().await {
-            Ok(true) => log::info!("notification permission granted"),
-            Ok(false) => {
-                log::error!("permission denied: allow in System Settings → Notifications");
-                return;
-            }
-            Err(e) => {
-                log::error!("auth error: {e}");
-                return;
-            }
-        }
-
-        // show_async sends the notification and waits for the user to
-        // interact.  A synthetic dismiss-tracking category is registered
-        // internally, so swiping the banner away delivers the response even
-        // without explicit action buttons.  The extra "Dismiss" button below
-        // is optional but gives the user a visible affordance.
-        let handle = match Notification::new()
-            .summary("Time is running out")
-            .body("This will go away.")
-            .action("dismiss", "Dismiss")
-            .show_async()
-            .await
-        {
-            Ok(h) => h,
-            Err(e) => {
-                log::error!("failed to show notification: {e}");
-                return;
-            }
-        };
-
-        // on_close never blocks, the response is already captured.
-        // CloseHandler is a sync trait; async follow-up work goes after.
-        handle.on_close(|| log::info!("notification was closed"));
-
-        if let Err(e) = Notification::new()
-            .summary("Done")
-            .body("Notification was closed.")
-            .show_async()
-            .await
-        {
-            log::error!("follow-up notification failed: {e}");
-        }
-    });
+    println!("this example requires the default macOS backend (UNUserNotificationCenter)");
 }
 
-#[cfg(all(not(feature = "pure_usernotifications"), target_os = "macos"))]
-fn main() {
-    println!("this example requires the `pure_usernotifications` feature on macOS")
-}
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
+async_main!(async {
+    // show_async sends the notification and waits for delivery.
+    // response().await then suspends until the user interacts.
+    // A "Dismiss" button gives the user a visible affordance and ensures
+    // macOS delivers the dismiss event.
+    let handle = match Notification::new()
+        .summary("Time is running out")
+        .body("This will go away.")
+        .action("dismiss", "Dismiss")
+        .show_async()
+        .await
+    {
+        Ok(h) => h,
+        Err(e) => {
+            log::error!("failed to show notification: {e}");
+            return;
+        }
+    };
+
+    match handle.response().await {
+        UserResponse::Closed(_) => log::info!("notification was closed"),
+        UserResponse::Action(key) => log::info!("action invoked: {key}"),
+        UserResponse::Reply(text) => log::info!("reply: {text}"),
+    }
+
+    if let Err(e) = Notification::new()
+        .summary("Done")
+        .body("Notification was closed.")
+        .show_async()
+        .await
+    {
+        log::error!("follow-up notification failed: {e}");
+    }
+});

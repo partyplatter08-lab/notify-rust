@@ -7,13 +7,12 @@ fn main() {
     log::info!("this is a xdg only feature");
 }
 
-// linux and mac, but on mac only with `"pure_usernotifications"` feature
-#[cfg(any(
-    target_os = "linux",
-    all(target_os = "macos", feature = "pure_usernotifications")
-))]
+// XDG (Linux/BSD): still uses the deprecated &str-based wait_for_action API.
+// On macOS the modern response_blocking() API is used instead (see below).
+#[cfg(all(unix, not(target_os = "macos")))]
 fn main() {
     common::setup();
+
     Notification::new()
         .summary("click me")
         .body("This will disappear by itself")
@@ -61,6 +60,36 @@ fn main() {
         .response_blocking()
     {
         UserResponse::Action(key) if key == "default" => log::info!("default"),
+        UserResponse::Action(key) if key == "clicked_a" => log::info!("clicked a"),
+        UserResponse::Action(key) if key == "clicked_b" => log::info!("clicked b"),
+        UserResponse::Action(other) => log::info!("unknown action: {other}"),
+        UserResponse::Reply(text) => log::info!("replied: {text}"),
+        UserResponse::Closed(reason) => log::info!("closed: {reason:?}"),
+    }
+}
+
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
+fn main() {
+    println!("this example requires the default macOS backend (UNUserNotificationCenter)");
+}
+
+// macOS: uses the modern response_blocking() / response().await API.
+// Hint and urgency methods are not available on macOS.
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
+fn main() {
+    if !common::setup() {
+        return;
+    }
+
+    match Notification::new()
+        .summary("click me")
+        .body("This action needs to be clicked")
+        .action("clicked_a", "button a")
+        .action("clicked_b", "button b")
+        .show()
+        .unwrap()
+        .response_blocking()
+    {
         UserResponse::Action(key) if key == "clicked_a" => log::info!("clicked a"),
         UserResponse::Action(key) if key == "clicked_b" => log::info!("clicked b"),
         UserResponse::Action(other) => log::info!("unknown action: {other}"),

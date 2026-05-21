@@ -2,21 +2,20 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::Notification;
 
-    cfg_select! {
-        feature = "pure_usernotifications" => {
-            // a bundled app can not log to stdout
-            oslog::OsLogger::new("notify-rust")
-                .level_filter(log::LevelFilter::Debug)
-                .init()
-                .unwrap();
+    // a bundled app cannot log to stdout
+    oslog::OsLogger::new("notify-rust")
+        .level_filter(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
 
-            notify_rust::request_auth_blocking().unwrap();
-        }
-        not(feature = "pure_usernotifications") => {
-            let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
-            notify_rust::set_application(&bundle_id).unwrap();
-        }
+    #[cfg(feature = "macos_legacy")]
+    {
+        let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
+        notify_rust::set_application(&bundle_id).unwrap();
     }
+
+    #[cfg(not(feature = "macos_legacy"))]
+    notify_rust::request_auth_blocking().unwrap();
 
     Notification::new()
         .summary("Safari Crashed")

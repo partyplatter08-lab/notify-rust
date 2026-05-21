@@ -2,35 +2,39 @@
 
 #[cfg(target_os = "macos")]
 pub fn setup() -> bool {
-    cfg_select! {
-        feature = "pure_usernotifications" => {
-            oslog::OsLogger::new("notify-rust")
-                .level_filter(log::LevelFilter::Debug)
-                .init()
-                .unwrap();
+    oslog::OsLogger::new("notify-rust")
+        .level_filter(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
+    setup_mac_auth()
+}
 
-            match notify_rust::request_auth_blocking() {
-                Ok(true) => {
-                    log::info!("Notification permission granted.");
-                    true
-                }
-                Ok(false) => {
-                    log::warn!(
-                        "Notification permission denied. \
-                         Allow it in System Settings -> Notifications."
-                    );
-                    false
-                }
-                Err(error) => {
-                    log::error!("Authorization error: {error}");
-                    false
-                }
-            }
-        }
-        not(feature = "pure_usernotifications") => {
-            let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
-            notify_rust::set_application(&bundle_id).unwrap();
+/// Legacy path: use the bundle-id trick from `mac-notification-sys`.
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
+fn setup_mac_auth() -> bool {
+    let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
+    notify_rust::set_application(&bundle_id).unwrap();
+    true
+}
+
+/// Default path: request UNUserNotificationCenter permission.
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
+pub fn setup_mac_auth() -> bool {
+    match notify_rust::request_auth_blocking() {
+        Ok(true) => {
+            log::info!("Notification permission granted.");
             true
+        }
+        Ok(false) => {
+            log::warn!(
+                "Notification permission denied. \
+                 Allow it in System Settings -> Notifications."
+            );
+            false
+        }
+        Err(error) => {
+            log::error!("Authorization error: {error}");
+            false
         }
     }
 }
@@ -67,4 +71,21 @@ pub fn wait_for_keypress(msg: &str) {
     });
 
     let _ = receiver.recv();
+}
+
+#[macro_export]
+macro_rules! async_main {
+    ($future:expr) => {
+        fn main() {
+            oslog::OsLogger::new("notify-rust")
+                .level_filter(log::LevelFilter::Debug)
+                .init()
+                .unwrap();
+
+            if !common::setup_mac_auth() {
+                return;
+            }
+            mac_usernotifications::block_on_main($future)
+        }
+    };
 }

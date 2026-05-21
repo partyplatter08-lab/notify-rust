@@ -2,7 +2,7 @@ mod common;
 
 #[cfg(any(
     target_os = "windows",
-    all(target_os = "macos", not(feature = "pure_usernotifications"))
+    all(target_os = "macos", feature = "macos_legacy")
 ))]
 
 fn main() {
@@ -10,7 +10,7 @@ fn main() {
 }
 #[cfg(any(
     all(unix, not(target_os = "macos")),
-    all(target_os = "macos", feature = "pure_usernotifications")
+    all(target_os = "macos", not(feature = "macos_legacy"))
 ))]
 fn main() {
     use notify_rust::*;

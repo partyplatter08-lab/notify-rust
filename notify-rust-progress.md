@@ -72,16 +72,16 @@ Status legend: ☐ todo · 🛠 in progress · ✅ done · ⛔ blocked · ❎ dr
 | B1  | `show() -> Result<NotificationHandle>` on macOS legacy                       |   ☐    | |
 | B2  | `show() -> Result<NotificationHandle>` on Windows                            |   ☐    | |
 | B3  | `NotificationHandle::id() -> NotificationId` everywhere                      |   ☐    | |
-| B4  | Remove `wait_for_action(&str)`                                               |   ☐    | |
-| B5  | Remove `"__closed"` sentinel                                                 |   ☐    | |
-| B6  | Remove `wait_for_action_response`                                            |   ☐    | introduced in 4.18 as stepping stone |
-| B7  | Remove `on_close` everywhere                                                 |   ☐    | |
-| B8  | Flip macOS default to UN, gate legacy behind `macos_legacy`                  |   ☐    | |
+| B4  | Remove `wait_for_action(&str)` from macOS UN handle                          |   ✅   | removed from `pure_usernotifications::NotificationHandle` |
+| B5  | Remove `"__closed"` sentinel                                                 |   ☐    | still present on XDG |
+| B6  | Remove `wait_for_action_response` from macOS UN handle                       |   ✅   | removed from `pure_usernotifications::NotificationHandle` |
+| B7  | Remove `on_close` from macOS UN handle                                       |   ✅   | removed from `pure_usernotifications::NotificationHandle`; still present on XDG |
+| B8  | Flip macOS default to UN, gate legacy behind `macos_legacy`                  |   ✅   | `macos_legacy` feature added; `mac-notification-sys` now optional |
 | B9  | Flip Windows default to `win32_notif`, gate legacy behind `windows_legacy`   |   ☐    | |
-| B10 | Move `set_application` / `get_bundle_identifier_or_default` under `macos_legacy` |   ☐    | |
+| B10 | Move `set_application` / `get_bundle_identifier_or_default` under `macos_legacy` |   ✅   | gated on `feature = "macos_legacy"` in `lib.rs` |
 | B11 | Remove macOS `Urgency` re-export                                             |   ☐    | depends on Q9 |
 | B12 | Remove `show_debug`                                                          |   ☐    | depends on Q12 |
-| B13 | Rename / drop `pure_usernotifications` flag                                  |   ☐    | depends on Q1 |
+| B13 | Rename / drop `pure_usernotifications` flag                                  |   🛠   | kept as empty no-op alias; module still named `pure_usernotifications` |
 
 ### New unified API
 
@@ -89,7 +89,7 @@ Status legend: ☐ todo · 🛠 in progress · ✅ done · ⛔ blocked · ❎ dr
 |-----|-----------------------------------------------------------------------|:------:|-------|
 | U1  | `NotificationHandle::response() -> UserResponse` on XDG               |   ☐    | |
 | U2  | `NotificationHandle::response_blocking() -> UserResponse` on XDG      |   ☐    | |
-| U3  | Same on macOS UN                                                       |   ☐    | already largely present on the branch |
+| U3  | Same on macOS UN                                                       |   ✅   | `response().await` and `response_blocking()` on `pure_usernotifications::NotificationHandle` |
 | U4  | Same on Windows                                                        |   ☐    | requires plumbing on `win32_notif` path |
 | U5  | `close()` on Windows                                                   |   ☐    | from `windows_todo.md` future-work |
 | U6  | `update()` / `update_async()` on Windows                               |   ☐    | partially present on branch |
@@ -98,8 +98,8 @@ Status legend: ☐ todo · 🛠 in progress · ✅ done · ⛔ blocked · ❎ dr
 
 | ID  | Gate                                                                           | Status |
 |-----|--------------------------------------------------------------------------------|:------:|
-| W1  | `cargo check` with default features on all three platforms                     |   ☐    |
-| W2  | `cargo check --features macos_legacy` builds on macOS                          |   ☐    |
+| W1  | `cargo check` with default features on all three platforms                     |   🛠   | macOS ✅; Linux/Windows pending |
+| W2  | `cargo check --features macos_legacy` builds on macOS                          |   ✅   |
 | W3  | `cargo check --features windows_legacy` builds on Windows                      |   ☐    |
 | W4  | `cargo hack` feature powerset (depth 2) on all three platforms                 |   ☐    |
 | W5  | Migration guide published (covers B1..B13)                                     |   ☐    |

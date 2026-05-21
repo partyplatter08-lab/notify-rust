@@ -11,7 +11,7 @@ fn main() {
 
 #[cfg(any(
     all(unix, not(target_os = "macos")),
-    all(target_os = "macos", feature = "pure_usernotifications")
+    all(target_os = "macos", not(feature = "macos_legacy"))
 ))]
 fn update_via_handle() {
     let mut notification_handle = Notification::new()
@@ -33,7 +33,7 @@ fn update_via_handle() {
 
 #[cfg(any(
     all(unix, not(target_os = "macos")),
-    all(target_os = "macos", feature = "pure_usernotifications")
+    all(target_os = "macos", not(feature = "macos_legacy"))
 ))]
 fn update_via_stored_id() {
     let handle = Notification::new()
@@ -57,7 +57,7 @@ fn update_via_stored_id() {
 
 #[cfg(any(
     all(unix, not(target_os = "macos")),
-    all(target_os = "macos", feature = "pure_usernotifications")
+    all(target_os = "macos", not(feature = "macos_legacy"))
 ))]
 fn recycling_one_id() {
     for i in 1..5 {
@@ -72,14 +72,14 @@ fn recycling_one_id() {
     }
 }
 
-#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 fn main() {
-    println!("this example requires the `pure_usernotifications` feature on macOS");
+    println!("this example requires the default macOS backend (UNUserNotificationCenter)");
 }
 
 #[cfg(any(
     all(unix, not(target_os = "macos")),
-    all(target_os = "macos", feature = "pure_usernotifications")
+    all(target_os = "macos", not(feature = "macos_legacy"))
 ))]
 fn main() {
     if !common::setup() {
@@ -93,6 +93,5 @@ fn main() {
     update_via_stored_id();
 
     // or recycle a hardcoded id (not recommended)
-    // #[cfg(all(unix, not(target_os = "macos")))]
     recycling_one_id();
 }

@@ -18,7 +18,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
+fn main() {
+    println!("this example requires the default macOS backend (UNUserNotificationCenter)");
+}
+
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
 #[async_std::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use notify_rust::Notification;
@@ -29,13 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .summary("async notification")
         .subtitle("subtitle")
         .body("this notification was sent via an async api")
-        .icon("dialog-positive")
         .show_async()
         .await?;
     Ok(())
-}
-
-#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
-fn main() {
-    println!("this example requires the `pure_usernotifications` feature on macOS")
 }

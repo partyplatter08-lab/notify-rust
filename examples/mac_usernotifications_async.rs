@@ -1,18 +1,13 @@
-#[cfg(all(feature = "pure_usernotifications", target_os = "macos"))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
+fn main() {
+    println!("this example requires the default macOS backend (UNUserNotificationCenter)");
+}
+
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
 fn main() {
     use futures_lite::future::zip;
     use mac_usernotifications::block_on_main;
     use notify_rust::{Notification, UserResponse};
-
-    cfg_select! {
-        feature = "pure_usernotifications" => {
-            notify_rust::request_auth_blocking().unwrap();
-        }
-        not(feature = "pure_usernotifications") => {
-            let bundle_id = notify_rust::get_bundle_identifier_or_default("zed");
-            notify_rust::set_application(&bundle_id).unwrap();
-        }
-    }
 
     // a bundled app can not log to stdout
     oslog::OsLogger::new("notify-rust")
@@ -20,8 +15,11 @@ fn main() {
         .init()
         .unwrap();
 
+    block_on_main(async {
+    notify_rust::request_auth_blocking().unwrap();
+
     // Send all notifications concurrently and collect their handles.
-    let ((result_plain, result_image), (result_a, result_b)) = block_on_main(zip(
+    let ((result_plain, result_image), (result_a, result_b)) = zip(
         zip(
             Notification::new()
                 .summary("Safari Crashed")
@@ -49,7 +47,7 @@ fn main() {
                 .action("clicked_c", "button c")
                 .show_async(),
         ),
-    ));
+    ).await;
 
     if let Err(e) = result_plain {
         eprintln!("plain notification failed: {e}");
@@ -77,11 +75,7 @@ fn main() {
             UserResponse::Closed(_) => println!("notification B was closed"),
         }
     }
-}
-
-#[cfg(all(not(feature = "pure_usernotifications"), target_os = "macos"))]
-fn main() {
-    println!("this example requires the `pure_usernotifications` feature")
+    });
 }
 
 #[cfg(not(target_os = "macos"))]

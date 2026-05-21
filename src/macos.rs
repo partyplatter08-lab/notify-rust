@@ -25,7 +25,9 @@
 //! | Authorization request | No | Yes (`request_auth`) |
 
 /// Items that belong exclusively to the legacy `NSUserNotificationCenter` path.
-#[cfg(not(feature = "pure_usernotifications"))]
+///
+/// Enable the `macos_legacy` feature to activate this module.
+#[cfg(feature = "macos_legacy")]
 pub mod legacy {
     use crate::{error::*, notification::Notification};
     use std::ops::{Deref, DerefMut};
@@ -123,13 +125,13 @@ pub mod legacy {
     }
 }
 
-/// Items that belong exclusively to the `pure_usernotifications` path
-/// (`UNUserNotificationCenter`).
-#[cfg(feature = "pure_usernotifications")]
+/// The default macOS backend: `UNUserNotificationCenter` (`mac-usernotifications`).
+///
+/// This is the only available backend unless the `macos_legacy` feature is enabled.
+#[cfg(not(feature = "macos_legacy"))]
 pub mod pure_usernotifications {
     use crate::{
-        action::UserResponse, error::*, notification::Notification, ActionResponse,
-        ActionResponseHandler, CloseHandler, CloseReason, Timeout,
+        action::UserResponse, error::*, notification::Notification, CloseReason, Timeout,
     };
     use mac_usernotifications::Sound;
     pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
@@ -192,56 +194,6 @@ pub mod pure_usernotifications {
             }
         }
 
-        /// Call `invocation_closure` with the action the user took (old `&str` API).
-        ///
-        /// This is the legacy compatibility overload. The closure receives the
-        /// action identifier as a plain `&str`. Use [`wait_for_action_response`]
-        /// or [`response_blocking`](Self::response_blocking) for the modern API.
-        ///
-        /// The special value `"__closed"` is passed when the notification is
-        /// dismissed without any action. This sentinel will be removed in 5.0.
-        // #[deprecated(
-        //     since = "4.1.18",
-        //     note = "use response_blocking() or wait_for_action_response(); \"__closed\" sentinel will be removed in 5.0"
-        // )]
-        pub fn wait_for_action<F>(self, invocation_closure: F)
-        where
-            F: FnOnce(&str),
-        {
-            let action = match self.inner.response_blocking() {
-                Ok(ref resp) => mac_response_to_action_response(resp),
-                Err(_) => ActionResponse::Closed(CloseReason::Expired),
-            };
-            match &action {
-                ActionResponse::Action(key) => invocation_closure(key),
-                ActionResponse::Reply(text) => invocation_closure(text),
-                ActionResponse::Closed(_reason) => invocation_closure("__closed"),
-            }
-        }
-
-        /// Call `invocation_closure` with the action the user took.
-        ///
-        /// Blocks until the user responds or the timeout elapses.
-        pub fn wait_for_action_response(self, invocation_closure: impl ActionResponseHandler) {
-            let action = match self.inner.response_blocking() {
-                Ok(ref resp) => mac_response_to_action_response(resp),
-                Err(_) => ActionResponse::Closed(CloseReason::Expired),
-            };
-            invocation_closure.call(&action);
-        }
-
-        /// Call `handler` if the notification was dismissed without interaction.
-        ///
-        /// Blocks until the user responds or the timeout elapses.
-        pub fn on_close<A>(self, handler: impl CloseHandler<A>) {
-            if let ActionResponse::Closed(reason) = match self.inner.response_blocking() {
-                Ok(ref resp) => mac_response_to_action_response(resp),
-                Err(_) => ActionResponse::Closed(CloseReason::Expired),
-            } {
-                handler.call(reason);
-            }
-        }
-
         /// Re-send the notification in-place, preserving its id.
         ///
         /// Mutate the handle via `DerefMut` first to change title, body, etc.,
@@ -282,18 +234,6 @@ pub mod pure_usernotifications {
         }
     }
 
-    fn mac_response_to_action_response(
-        resp: &mac_usernotifications::NotificationResponse,
-    ) -> ActionResponse {
-        if resp.is_dismiss_action() {
-            ActionResponse::Closed(CloseReason::Dismissed)
-        } else if let Some(ref text) = resp.reply_text {
-            ActionResponse::Reply(text.clone())
-        } else {
-            ActionResponse::Action(resp.action_identifier.clone())
-        }
-    }
-
     fn mac_response_to_user_response(
         resp: &mac_usernotifications::NotificationResponse,
     ) -> UserResponse {
@@ -319,7 +259,7 @@ pub mod pure_usernotifications {
             }
             for chunk in n.actions.chunks(2) {
                 if let (Some(id), Some(label)) = (chunk.first(), chunk.get(1)) {
-                    un = un.action(mac_usernotifications::Action::new(id, label));
+                    un = un.action(mac_usernotifications::Action::button(id, label));
                 }
             }
             if let Timeout::Milliseconds(ms) = n.timeout {
@@ -376,10 +316,10 @@ pub mod pure_usernotifications {
     }
 }
 
-#[cfg(not(feature = "pure_usernotifications"))]
+#[cfg(feature = "macos_legacy")]
 pub(crate) use legacy::{schedule_notification, show_notification};
 
-#[cfg(feature = "pure_usernotifications")]
+#[cfg(not(feature = "macos_legacy"))]
 pub(crate) use pure_usernotifications::{
     schedule_notification, show_notification, show_notification_async,
 };

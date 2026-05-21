@@ -496,38 +496,26 @@ impl Notification {
         xdg::show_notification_async_at_bus(self, bus).await
     }
 
-    /// Sends Notification to `NSUserNotificationCenter`.
+    /// Send a notification via `UNUserNotificationCenter`.
     ///
-    /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
-    /// the notification.
-    /// Send a fire-and-forget notification via `NSUserNotificationCenter`
-    #[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+    /// Returns a [`NotificationHandle`] once macOS has accepted the request.
+    /// Use [`show_async`](Self::show_async) to await delivery on a background
+    /// thread, or [`NotificationHandle::response`] / [`NotificationHandle::response_blocking`]
+    /// to wait for the user's interaction.
+    ///
+    /// On macOS with the `macos_legacy` feature the legacy
+    /// `NSUserNotificationCenter` path is used instead.
+    #[cfg(target_os = "macos")]
     pub fn show(&self) -> Result<NotificationHandle> {
         macos::show_notification(self)
     }
 
-    /// Sends Notification to `NSUserNotificationCenter`.
+    /// Send a notification asynchronously via `UNUserNotificationCenter`.
     ///
-    /// Returns an `Ok` no matter what, since there is currently no way of telling the success of
-    /// the notification.
-    /// Send a fire-and-forget notification via `UNUserNotificationCenter`.
-    #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
-    pub fn show(&self) -> Result<NotificationHandle> {
-        macos::show_notification(self)
-    }
-
-    /// Send an actionable notification and wait for the user to respond.
-    ///
-    /// Returns a [`NotificationHandle`][macos::pure_usernotifications::NotificationHandle] with the
-    /// user's response already captured.  Calling
-    /// [`wait_for_action`][macos::pure_usernotifications::NotificationHandle::wait_for_action] or
-    /// [`on_close`][macos::pure_usernotifications::NotificationHandle::on_close] on the returned
-    /// handle never blocks.
-    ///
-    /// The main thread must be pumping `NSRunLoop` while this future is awaited,
-    /// use [`block_on_main`][mac_notification_sys::un::block_on_main] for CLI tools,
-    /// or call this from within a Tokio task while the main thread runs [`run_main_loop_while`][mac_notification_sys::un::run_main_loop_while].
-    #[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+    /// The main thread must be pumping `NSRunLoop` while this future is awaited.
+    /// Use [`mac_usernotifications::block_on_main`] for CLI tools.
+    #[cfg(target_os = "macos")]
+    #[cfg(not(feature = "macos_legacy"))]
     pub async fn show_async(&self) -> Result<NotificationHandle> {
         macos::show_notification_async(self).await
     }

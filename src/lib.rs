@@ -163,7 +163,7 @@
 #[cfg(all(feature = "dbus", unix, not(target_os = "macos")))]
 extern crate dbus;
 
-#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 extern crate mac_notification_sys;
 
 #[cfg(target_os = "windows")]
@@ -198,14 +198,14 @@ pub use crate::action::{
     ActionResponse, ActionResponseHandler, CloseHandler, CloseReason, UserResponse,
 };
 
-#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};
-#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
 pub use macos::pure_usernotifications::{request_auth, request_auth_blocking};
 
-#[cfg(all(target_os = "macos", not(feature = "pure_usernotifications")))]
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 pub use macos::legacy::NotificationHandle;
-#[cfg(all(target_os = "macos", feature = "pure_usernotifications"))]
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
 pub use macos::pure_usernotifications::NotificationHandle;
 
 #[cfg(all(
