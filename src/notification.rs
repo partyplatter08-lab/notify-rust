@@ -1,5 +1,5 @@
 #[cfg(target_os = "macos")]
-use crate::NotificationHandle;
+use crate::{InterruptionLevel, NotificationHandle};
 
 #[cfg(all(unix, target_os = "macos"))]
 use crate::Hint;
@@ -96,6 +96,9 @@ pub struct Notification {
     #[cfg(target_os = "windows")]
     pub(crate) urgency: Option<Urgency>,
 
+    #[cfg(target_os = "macos")]
+    pub(crate) interruption_level: Option<InterruptionLevel>,
+
     #[cfg(all(unix, not(target_os = "macos")))]
     pub(crate) bus: xdg::NotificationBus,
 
@@ -155,6 +158,20 @@ impl Notification {
     /// This is only useful on macOS, it's not part of the XDG specification and will therefore be eaten by gremlins under your CPU 😈🤘.
     pub fn subtitle(&mut self, subtitle: &str) -> &mut Notification {
         self.subtitle = Some(subtitle.to_owned());
+        self
+    }
+
+    /// Set the `interruption_level` for macOS notifications.
+    ///
+    /// Controls whether the notification breaks through `Focus` modes (macOS 12+).
+    /// This is only available on macOS with `UserNotifications`; it has no effect on other platforms.
+    ///
+    /// # Platform support
+    /// - **macOS (UserNotifications):** Supported
+    /// - **Other platforms:** No effect
+    #[cfg(target_os = "macos")]
+    pub fn interruption_level(&mut self, level: InterruptionLevel) -> &mut Notification {
+        self.interruption_level = Some(level);
         self
     }
 
@@ -578,6 +595,7 @@ impl Default for Notification {
             sound_name: Default::default(),
             path_to_image: None,
             id: None,
+            interruption_level: None,
         }
     }
 

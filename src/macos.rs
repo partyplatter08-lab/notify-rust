@@ -32,16 +32,23 @@ mod nsusernotification;
 
 #[cfg(feature = "macos_legacy")]
 pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};
+
 #[cfg(feature = "macos_legacy")]
-pub(crate) use nsusernotification::{schedule_notification, show_notification, NotificationHandle};
+pub(crate) use nsusernotification::{schedule_notification, show_notification};
+
 #[cfg(feature = "macos_legacy")]
-pub use nsusernotification::{ApplicationError, MacOsError, NotificationError};
+pub use nsusernotification::{ApplicationError, MacOsError, NotificationError, NotificationHandle};
 
 #[cfg(not(feature = "macos_legacy"))]
 mod usernotifications;
+
 #[cfg(not(feature = "macos_legacy"))]
 pub(crate) use usernotifications::{
     schedule_notification, show_notification, show_notification_async,
 };
+
 #[cfg(not(feature = "macos_legacy"))]
 pub use usernotifications::{MacOsError, NotificationHandle};
+
+#[cfg(not(feature = "macos_legacy"))]
+pub use mac_usernotifications::{check_bundle, request_auth, request_auth_blocking};

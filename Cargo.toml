@@ -41,7 +41,8 @@ winrt-notification = { package = "tauri-winrt-notification", version = "0.7" }
 [features]
 default = [
     "z",
-    # "macos_legacy"
+    #
+    "macos_legacy",
 ]
 server = []
 d = ["dbus"]

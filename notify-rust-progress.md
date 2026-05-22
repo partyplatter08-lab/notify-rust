@@ -36,6 +36,7 @@ Status legend: ☐ todo · 🛠 in progress · ✅ done · ⛔ blocked · ❎ dr
 | F8b | Windows polish: looping audio for `Alarm*`/`Call*`                                       |   ☐    | `feature/win32-notif` (`windows_todo.md`) | |
 | F8c | Windows polish: `with_expiry` honoring ms timeouts                                       |   ☐    | `feature/win32-notif` (`windows_todo.md`) | |
 | F9  | Docs: preview-backends section in README and crate root                                  |   ☐    |                                        | |
+| F10 | macOS UN `interruption_level()` builder method                                          |   ✅   | main | re-exports `InterruptionLevel` from `mac-usernotifications` |
 
 ### Revert work needed on the source branches
 
@@ -58,6 +59,7 @@ Status legend: ☐ todo · 🛠 in progress · ✅ done · ⛔ blocked · ❎ dr
 | V5  | `cargo hack` feature powerset (depth 2) on all three platforms                 |   ☐    |
 | V6  | All existing examples compile unchanged on default features                    |   ☐    |
 | V7  | New examples for `pure_usernotifications` and `win32`                          |   ☐    |
+| V7b | Example for `interruption_level` feature                                        |   ✅   | `examples/interruption_level.rs` |
 | V8  | CHANGELOG entry for 4.18                                                       |   ☐    |
 | V9  | Public API diff vs 4.17 reviewed (`cargo public-api` or manual)                |   ☐    |
 

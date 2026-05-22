@@ -141,6 +141,9 @@ impl From<&Notification> for mac_usernotifications::Notification {
             };
             un = un.id(&id_str);
         }
+        if let Some(level) = n.interruption_level {
+            un = un.interruption_level(level);
+        }
         un
     }
 }

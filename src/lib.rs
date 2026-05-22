@@ -176,6 +176,7 @@ extern crate lazy_static;
 mod action;
 pub mod error;
 mod hints;
+mod interruption_level;
 mod miniver;
 mod notification;
 mod notification_id;
@@ -198,8 +199,11 @@ pub use crate::action::{
     ActionResponse, ActionResponseHandler, CloseHandler, CloseReason, UserResponse,
 };
 
-#[cfg(target_os = "macos")]
-pub use macos::*;
+#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
+pub use macos::{get_bundle_identifier_or_default, set_application, NotificationHandle};
+
+#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
+pub use macos::{check_bundle, request_auth, request_auth_blocking, NotificationHandle};
 
 #[cfg(all(
     any(feature = "dbus", feature = "zbus"),
@@ -225,6 +229,7 @@ pub use crate::image::{Image, ImageError};
 )]
 pub use crate::urgency::Urgency;
 
+pub use crate::interruption_level::InterruptionLevel;
 pub use crate::{notification::Notification, notification_id::NotificationId, timeout::Timeout};
 
 #[cfg(all(feature = "images_no_default_features", unix, not(target_os = "macos")))]
@@ -235,6 +240,7 @@ lazy_static! {
         .and_then(|info| info.spec_version.parse::<miniver::Version>())
         .unwrap_or_else(|_| miniver::Version::new(1,1));
 }
+
 /// Return value of `get_server_information()`.
 #[derive(Debug)]
 pub struct ServerInformation {

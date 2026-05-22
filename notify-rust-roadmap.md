@@ -34,29 +34,29 @@ this roadmap references it but does not duplicate it.
 
 ### New features (additive only on default cfg)
 
-| # | Feature | Default? | Breaking? | Notes |
-|---|---------|----------|-----------|-------|
-| F1 | Feature flag `pure_usernotifications` (macOS, `UNUserNotificationCenter`) | no | no (opt-in) | from `feature/macos-usernotifications` |
-| F2 | Feature flag `win32` (Windows, `win32_notif`) | no | no (opt-in) | from `feature/win32-notif` |
-| F3 | `ActionResponse`, `CloseReason`, `UserResponse` types in `notify_rust::action` | yes | no | new types, no signature changes |
-| F4 | `NotificationId` enum | yes | no | new type; not yet returned from `id()` on default cfg |
-| F5 | `Notification::hero_image()` (Windows-only, additive, gated `cfg(target_os="windows")`) | yes | no | only takes effect under `win32` feature; no-op otherwise |
-| F6 | XDG: `wait_for_action_response(&ActionResponse)` (additive, alongside existing `wait_for_action(&str)`) | yes | no | shipped as the migration target for 5.0 |
-| F7 | Deprecation warnings on `wait_for_action(&str)` and the `"__closed"` sentinel | yes | no | `#[deprecated]` only, still functional |
-| F8 | Internal Windows polish from `windows_todo.md` that does not touch the public API (e.g. `Scenario::Urgent` runtime fallback, looping audio for `Alarm*`/`Call*`, `with_expiry` honoring ms timeouts) | yes | no | landed in the legacy `winrt-notification` path **and** in the new `win32` path where applicable |
-| F9 | Docs: "preview backends" section in `README.md` and crate root, pointing users at the two new flags | yes | no | |
+| #   | Feature                                                                                                                                                                                              | Default? | Breaking?   | Notes                                                                                           |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| F1  | Feature flag `pure_usernotifications` (macOS, `UNUserNotificationCenter`)                                                                                                                            | no       | no (opt-in) | from `feature/macos-usernotifications`                                                          |
+| F2  | Feature flag `win32` (Windows, `win32_notif`)                                                                                                                                                        | no       | no (opt-in) | from `feature/win32-notif`                                                                      |
+| F3  | `ActionResponse`, `CloseReason`, `UserResponse` types in `notify_rust::action`                                                                                                                       | yes      | no          | new types, no signature changes                                                                 |
+| F4  | `NotificationId` enum                                                                                                                                                                                | yes      | no          | new type; not yet returned from `id()` on default cfg                                           |
+| F5  | `Notification::hero_image()` (Windows-only, additive, gated `cfg(target_os="windows")`)                                                                                                              | yes      | no          | only takes effect under `win32` feature; no-op otherwise                                        |
+| F6  | XDG: `wait_for_action_response(&ActionResponse)` (additive, alongside existing `wait_for_action(&str)`)                                                                                              | yes      | no          | shipped as the migration target for 5.0                                                         |
+| F7  | Deprecation warnings on `wait_for_action(&str)` and the `"__closed"` sentinel                                                                                                                        | yes      | no          | `#[deprecated]` only, still functional                                                          |
+| F8  | Internal Windows polish from `windows_todo.md` that does not touch the public API (e.g. `Scenario::Urgent` runtime fallback, looping audio for `Alarm*`/`Call*`, `with_expiry` honoring ms timeouts) | yes      | no          | landed in the legacy `winrt-notification` path **and** in the new `win32` path where applicable |
+| F9  | Docs: "preview backends" section in `README.md` and crate root, pointing users at the two new flags                                                                                                  | yes      | no          |                                                                                                 |
 
 ### Explicitly **not** in 4.18 (deferred to 5.0)
 
-| # | Item | Why deferred |
-|---|------|--------------|
-| D1 | `show()` returning `Result<NotificationHandle>` on default macOS/Windows | breaks the existing `Result<()>` signature |
-| D2 | `NotificationHandle::id()` returning `NotificationId` | breaks the existing `u32` return type |
-| D3 | Removal of `wait_for_action(&str)` and `"__closed"` | breaks every existing call site |
-| D4 | Replacing `tauri-winrt-notification` with `win32_notif` as the Windows default | the dep swap changes default-cfg behaviour and error types |
-| D5 | Making `pure_usernotifications` the default macOS path | flips the macOS default cfg |
-| D6 | Unified `response().await` / `response_blocking()` on `NotificationHandle` | requires changing the handle's public surface across all backends |
-| D7 | Moving `set_application` / `get_bundle_identifier_or_default` behind `macos_legacy` | feature-shuffle that breaks unconditional users |
+| #   | Item                                                                                | Why deferred                                                      |
+| --- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| D1  | `show()` returning `Result<NotificationHandle>` on default macOS/Windows            | breaks the existing `Result<()>` signature                        |
+| D2  | `NotificationHandle::id()` returning `NotificationId`                               | breaks the existing `u32` return type                             |
+| D3  | Removal of `wait_for_action(&str)` and `"__closed"`                                 | breaks every existing call site                                   |
+| D4  | Replacing `tauri-winrt-notification` with `win32_notif` as the Windows default      | the dep swap changes default-cfg behaviour and error types        |
+| D5  | Making `pure_usernotifications` the default macOS path                              | flips the macOS default cfg                                       |
+| D6  | Unified `response().await` / `response_blocking()` on `NotificationHandle`          | requires changing the handle's public surface across all backends |
+| D7  | Moving `set_application` / `get_bundle_identifier_or_default` behind `macos_legacy` | feature-shuffle that breaks unconditional users                   |
 
 ### Feature-flag layout in 4.18
 
@@ -115,22 +115,22 @@ the same platform (compile-time `cfg` switch).
 
 ### What we break (the full list)
 
-| # | API today (4.x) | API in 5.0 | Migration |
-|---|-----------------|------------|-----------|
-| B1 | `Notification::show() -> Result<()>` on macOS legacy | `Notification::show() -> Result<NotificationHandle>` | drop `?;` semicolon, optionally inspect handle |
-| B2 | `Notification::show() -> Result<()>` on Windows | `Notification::show() -> Result<NotificationHandle>` | same |
-| B3 | `NotificationHandle::id() -> u32` (XDG) | `NotificationHandle::id() -> NotificationId` | match on `NotificationId::Xdg(u32)` / `Mac(String)` / `Windows(String)` |
-| B4 | `wait_for_action<F: FnOnce(&str)>` (XDG + macOS) | removed | use `response_blocking()` and match on `UserResponse` |
-| B5 | `"__closed"` sentinel string | removed | match `UserResponse::Closed(CloseReason)` |
-| B6 | `wait_for_action_response` (added in 4.18) | removed | superseded by `response()` / `response_blocking()` |
-| B7 | `on_close(handler)` (XDG, and macOS UN in 4.18) | removed | match `UserResponse::Closed` |
-| B8 | macOS default backend = `mac-notification-sys` (legacy) | default = `UNUserNotificationCenter` (`pure_usernotifications`) | enable `macos_legacy` feature to opt back in |
-| B9 | Windows default backend = `tauri-winrt-notification` | default = `win32_notif` | enable `windows_legacy` feature to opt back in |
-| B10 | `set_application`, `get_bundle_identifier_or_default` re-exports on macOS | only under `macos_legacy` | feature-gate or migrate |
-| B11 | Public re-export of `Urgency` on macOS (`#[deprecated]` today) | removed | use `cfg(not(target_os = "macos"))` |
-| B12 | `Notification::show_debug` (already `#[deprecated]`) | removed | use logging |
-| B13 | Feature flag name `pure_usernotifications` | may be renamed to `macos_un` or dropped entirely (it's the default) | flag rename |
-| B14 | `Notification::action(id: &str, label: &str)` | `Notification::action(Action)` where `Action` is a typed builder | replace `action(id, label)` with `action(Action::button(id, label))`; adopt `Action::reply(…)` for text-input actions |
+| #   | API today (4.x)                                                           | API in 5.0                                                          | Migration                                                                                                             |
+| --- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| B1  | `Notification::show() -> Result<()>` on macOS legacy                      | `Notification::show() -> Result<NotificationHandle>`                | drop `?;` semicolon, optionally inspect handle                                                                        |
+| B2  | `Notification::show() -> Result<()>` on Windows                           | `Notification::show() -> Result<NotificationHandle>`                | same                                                                                                                  |
+| B3  | `NotificationHandle::id() -> u32` (XDG)                                   | `NotificationHandle::id() -> NotificationId`                        | match on `NotificationId::Xdg(u32)` / `Mac(String)` / `Windows(String)`                                               |
+| B4  | `wait_for_action<F: FnOnce(&str)>` (XDG + macOS)                          | removed                                                             | use `response_blocking()` and match on `UserResponse`                                                                 |
+| B5  | `"__closed"` sentinel string                                              | removed                                                             | match `UserResponse::Closed(CloseReason)`                                                                             |
+| B6  | `wait_for_action_response` (added in 4.18)                                | removed                                                             | superseded by `response()` / `response_blocking()`                                                                    |
+| B7  | `on_close(handler)` (XDG, and macOS UN in 4.18)                           | removed                                                             | match `UserResponse::Closed`                                                                                          |
+| B8  | macOS default backend = `mac-notification-sys` (legacy)                   | default = `UNUserNotificationCenter` (`pure_usernotifications`)     | enable `macos_legacy` feature to opt back in                                                                          |
+| B9  | Windows default backend = `tauri-winrt-notification`                      | default = `win32_notif`                                             | enable `windows_legacy` feature to opt back in                                                                        |
+| B10 | `set_application`, `get_bundle_identifier_or_default` re-exports on macOS | only under `macos_legacy`                                           | feature-gate or migrate                                                                                               |
+| B11 | Public re-export of `Urgency` on macOS (`#[deprecated]` today)            | removed                                                             | use `cfg(not(target_os = "macos"))`                                                                                   |
+| B12 | `Notification::show_debug` (already `#[deprecated]`)                      | removed                                                             | use logging                                                                                                           |
+| B13 | Feature flag name `pure_usernotifications`                                | may be renamed to `macos_un` or dropped entirely (it's the default) | flag rename                                                                                                           |
+| B14 | `Notification::action(id: &str, label: &str)`                             | `Notification::action(Action)` where `Action` is a typed builder    | replace `action(id, label)` with `action(Action::button(id, label))`; adopt `Action::reply(…)` for text-input actions |
 
 The list of breaking changes is shorter than it looks because most callers
 only use `.show().unwrap()`; the unwrap continues to compile. The two
@@ -146,6 +146,7 @@ means callers never touch a raw `i32`, `u32`, or platform string directly.
 `close(id)` and `update(id)` work the same way regardless of backend.
 
 Required changes:
+
 - Add `NotificationId::Windows(String)` variant.
 - Return `NotificationId::Windows(tag)` from the `win32` `NotificationHandle::id()`.
 - Make sure `close` / `update` on the Windows handle accept a `NotificationId` rather than a raw tag string.
@@ -159,6 +160,7 @@ In 5.0 it must use the same `ActionResponse` type so callers can write one
 `match` arm regardless of platform.
 
 Required changes:
+
 - Windows `NotificationHandle::response()` / `response_blocking()` must return `ActionResponse`.
 - Map Windows toast activation events to `ActionResponse::Action(key)` and dismiss events to `ActionResponse::Closed(CloseReason::Dismissed)` / `Expired` as appropriate.
 - No platform-specific response type should appear in public API.
@@ -189,11 +191,11 @@ text the user typed in a reply action.
 
 Platform support for 5.0:
 
-| `Action` variant/modifier | XDG | macOS (UN) | Windows (win32) |
-|---------------------------|:---:|:----------:|:---------------:|
-| `button`                  | ✅  | ✅         | ✅              |
-| `reply`                   | 🟡 stretch | ✅  | ❌              |
-| `requires_authentication` | ❌  | ✅         | ❌              |
+| `Action` variant/modifier |    XDG     | macOS (UN) | Windows (win32) |
+| ------------------------- | :--------: | :--------: | :-------------: |
+| `button`                  |     ✅     |     ✅     |       ✅        |
+| `reply`                   | 🟡 stretch |     ✅     |       ❌        |
+| `requires_authentication` |     ❌     |     ✅     |       ❌        |
 
 The 4.18 `pure_usernotifications` preview path can already expose `Action`
 as-is (it wraps `mac-usernotifications` directly). The legacy macOS path and
@@ -244,43 +246,44 @@ the current XDG surface, this is where we expect to land. ✅ = supported,
 
 #### `Notification` builder
 
-| method                 | XDG | macOS (UN) | Windows (win32) |
-|------------------------|:---:|:----------:|:---------------:|
-| `appname`              | ✅  | ❌         | ❌              |
-| `summary`              | ✅  | ✅         | ✅              |
-| `subtitle`             | ❌  | ✅         | ✅              |
-| `body`                 | ✅  | ✅         | ✅              |
-| `icon`                 | ✅  | ❌         | 🟡 app-logo override |
-| `image_path`           | ✅  | ✅         | ✅              |
-| `hero_image`           | ❌  | ❌         | ✅              |
-| `auto_icon`            | ✅  | ❌         | ❌              |
-| `hint`                 | ✅  | ❌         | ❌              |
-| `timeout`              | ✅  | ✅         | 🟡 bucketed     |
-| `urgency`              | ✅  | ❌         | 🟡 scenario map |
-| `Action::button(id, label)`        | ✅  | ✅         | ✅              |
-| `Action::reply(…)`                 | 🟡 stretch | ✅  | ❌              |
-| `action.requires_authentication()` | ❌  | ✅         | ❌              |
-| `id`                   | ✅  | ✅ (string)| 🟡 (tag-based)  |
-| `sound`                | 🟡  | ✅         | ✅              |
-| `thread_id`            | ❌  | ✅         | ❌              |
-| `schedule_in`          | ❌  | ✅         | ❌              |
-| `suppress_popup`       | ❌  | ❌         | ✅              |
-| progress bar           | ❌  | ❌         | ✅ (stretch)    |
+| method                             |    XDG     |      macOS (UN)       |   Windows (win32)    |
+| ---------------------------------- | :--------: | :-------------------: | :------------------: |
+| `appname`                          |     ✅     |          ❌           |          ❌          |
+| `summary`                          |     ✅     |          ✅           |          ✅          |
+| `subtitle`                         |     ❌     |          ✅           |          ✅          |
+| `body`                             |     ✅     |          ✅           |          ✅          |
+| `icon`                             |     ✅     |          ❌           | 🟡 app-logo override |
+| `image_path`                       |     ✅     |          ✅           |          ✅          |
+| `hero_image`                       |     ❌     |          ❌           |          ✅          |
+| `auto_icon`                        |     ✅     |          ❌           |          ❌          |
+| `hint`                             |     ✅     |          ❌           |          ❌          |
+| `timeout`                          |     ✅     |          ✅           |     🟡 bucketed      |
+| `urgency`                          |     ✅     | 🟡 interruption_level |   🟡 scenario map    |
+| `interruption_level`               |     ❌     |          ✅           |          ❌          |
+| `Action::button(id, label)`        |     ✅     |          ✅           |          ✅          |
+| `Action::reply(…)`                 | 🟡 stretch |          ✅           |          ❌          |
+| `action.requires_authentication()` |     ❌     |          ✅           |          ❌          |
+| `id`                               |     ✅     |      ✅ (string)      |    🟡 (tag-based)    |
+| `sound`                            |     🟡     |          ✅           |          ✅          |
+| `thread_id`                        |     ❌     |          ✅           |          ❌          |
+| `schedule_in`                      |     ❌     |          ✅           |          ❌          |
+| `suppress_popup`                   |     ❌     |          ❌           |          ✅          |
+| progress bar                       |     ❌     |          ❌           |     ✅ (stretch)     |
 
 #### `NotificationHandle`
 
-| method                        | XDG | macOS (UN) | Windows (win32) |
-|-------------------------------|:---:|:----------:|:---------------:|
-| `id`                          | ✅  | ✅         | ✅              |
-| `close`                       | ✅  | ✅         | ✅              |
-| `update` / `update_async`     | ✅  | ✅         | ✅              |
-| `response().await`            | ✅  | ✅         | ✅              |
-| `response_blocking()`         | ✅  | ✅         | ✅              |
+| method                    | XDG | macOS (UN) | Windows (win32) |
+| ------------------------- | :-: | :--------: | :-------------: |
+| `id`                      | ✅  |     ✅     |       ✅        |
+| `close`                   | ✅  |     ✅     |       ✅        |
+| `update` / `update_async` | ✅  |     ✅     |       ✅        |
+| `response().await`        | ✅  |     ✅     |       ✅        |
+| `response_blocking()`     | ✅  |     ✅     |       ✅        |
 
 Net: **the handle API is fully unified across all three backends in 5.0.**
 The builder is not: `hint`, `urgency`, `appname`, and `auto_icon` stay
 XDG-exclusive because the underlying systems do not model them; `subtitle`,
-`thread_id`, `schedule_in`, `Action::reply`, and `requires_authentication` stay macOS-exclusive (or macOS-primary);
+`thread_id`, `schedule_in`, `interruption_level`, `Action::reply`, and `requires_authentication` stay macOS-exclusive (or macOS-primary);
 `hero_image`, `suppress_popup`, and progress stay Windows-exclusive. Those
 remain `cfg`-gated.
 
@@ -322,7 +325,7 @@ These need a decision before work starts on 4.18:
    crates.io so 4.18 can ship?
 5. **Windows dep swap.** Do we tolerate carrying both `tauri-winrt-notification`
    and `win32_notif` in `Cargo.toml` for the duration of 4.18, or do we want
-   the `win32` feature to *replace* `tauri-winrt-notification` (which would
+   the `win32` feature to _replace_ `tauri-winrt-notification` (which would
    force every Windows user onto the new dep right away)? My recommendation
    is to keep both, since the whole point of 4.18 is non-breaking opt-in.
 6. **`NotificationId` in 4.18.** The macOS branch already returns
