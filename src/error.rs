@@ -9,7 +9,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 pub use crate::macos::nsusernotification::{ApplicationError, MacOsError, NotificationError};
 #[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
-pub use crate::macos::usernotifications::MacOsError;
+pub use crate::macos::MacOsError;
 
 /// The Error type.
 #[derive(Debug)]

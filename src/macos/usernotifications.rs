@@ -1,6 +1,6 @@
 use crate::{action::UserResponse, error::*, notification::Notification, CloseReason, Timeout};
+pub use mac_usernotifications::Error as MacOsError;
 use mac_usernotifications::Sound;
-pub use mac_usernotifications::{request_auth, request_auth_blocking, Error as MacOsError};
 use std::{ops::Deref, time::Duration};
 
 /// A handle to a sent notification (`UNUserNotificationCenter` path).

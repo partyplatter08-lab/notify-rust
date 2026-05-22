@@ -198,14 +198,8 @@ pub use crate::action::{
     ActionResponse, ActionResponseHandler, CloseHandler, CloseReason, UserResponse,
 };
 
-#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
-pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};
-
-#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
-pub use macos::usernotifications::*;
-
-#[cfg(all(target_os = "macos", feature = "macos_legacy"))]
-pub use macos::nsusernotification::*;
+#[cfg(target_os = "macos")]
+pub use macos::*;
 
 #[cfg(all(
     any(feature = "dbus", feature = "zbus"),

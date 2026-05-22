@@ -28,18 +28,20 @@
 ///
 /// Enable the `macos_legacy` feature to activate this module.
 #[cfg(feature = "macos_legacy")]
-pub mod nsusernotification;
+mod nsusernotification;
 
 #[cfg(feature = "macos_legacy")]
-pub(crate) use nsusernotification::{schedule_notification, show_notification};
+pub use nsusernotification::{schedule_notification, show_notification};
+
+#[cfg(not(feature = "macos_legacy"))]
+mod usernotifications;
+pub use usernotifications::{MacOsError, NotificationHandle};
 
 /// The default macOS backend: `UNUserNotificationCenter` (`mac-usernotifications`).
 ///
 /// This is the only available backend unless the `macos_legacy` feature is enabled.
 #[cfg(not(feature = "macos_legacy"))]
-pub mod usernotifications;
+pub use mac_usernotifications::*;
 
-#[cfg(not(feature = "macos_legacy"))]
-pub(crate) use usernotifications::{
-    schedule_notification, show_notification, show_notification_async,
-};
+#[cfg(feature = "macos_legacy")]
+pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};
