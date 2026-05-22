@@ -130,6 +130,7 @@ the same platform (compile-time `cfg` switch).
 | B11 | Public re-export of `Urgency` on macOS (`#[deprecated]` today) | removed | use `cfg(not(target_os = "macos"))` |
 | B12 | `Notification::show_debug` (already `#[deprecated]`) | removed | use logging |
 | B13 | Feature flag name `pure_usernotifications` | may be renamed to `macos_un` or dropped entirely (it's the default) | flag rename |
+| B14 | `Notification::action(id: &str, label: &str)` | `Notification::action(Action)` where `Action` is a typed builder | replace `action(id, label)` with `action(Action::button(id, label))`; adopt `Action::reply(…)` for text-input actions |
 
 The list of breaking changes is shorter than it looks because most callers
 only use `.show().unwrap()`; the unwrap continues to compile. The two
@@ -161,6 +162,43 @@ Required changes:
 - Windows `NotificationHandle::response()` / `response_blocking()` must return `ActionResponse`.
 - Map Windows toast activation events to `ActionResponse::Action(key)` and dismiss events to `ActionResponse::Closed(CloseReason::Dismissed)` / `Expired` as appropriate.
 - No platform-specific response type should appear in public API.
+
+### Rich `Action` builder (5.0 goal)
+
+`mac-usernotifications` models notification actions as a typed `Action` value
+instead of bare `(id, label)` strings:
+
+```rust
+// plain button — available on all platforms
+Action::button(id, label)
+
+// inline text-input reply — macOS UN today, XDG and Windows stretch
+Action::reply(id, label, button_title, placeholder)
+
+// modifier — macOS-only; silently ignored elsewhere
+action.requires_authentication()
+```
+
+`notify-rust` 5.0 adopts the same pattern. `Notification::action` changes
+from `action(id: &str, label: &str)` to `action(Action)`. The migration is
+mechanical: every existing `action("foo", "Bar")` becomes
+`action(Action::button("foo", "Bar"))`.
+
+`ActionResponse::Reply(String)` is already planned and maps directly to the
+text the user typed in a reply action.
+
+Platform support for 5.0:
+
+| `Action` variant/modifier | XDG | macOS (UN) | Windows (win32) |
+|---------------------------|:---:|:----------:|:---------------:|
+| `button`                  | ✅  | ✅         | ✅              |
+| `reply`                   | 🟡 stretch | ✅  | ❌              |
+| `requires_authentication` | ❌  | ✅         | ❌              |
+
+The 4.18 `pure_usernotifications` preview path can already expose `Action`
+as-is (it wraps `mac-usernotifications` directly). The legacy macOS path and
+the `win32` preview path continue to use the string-pair form internally and
+will be upgraded in 5.0.
 
 ### The 5.0 `NotificationHandle` (target shape)
 
@@ -219,13 +257,14 @@ the current XDG surface, this is where we expect to land. ✅ = supported,
 | `hint`                 | ✅  | ❌         | ❌              |
 | `timeout`              | ✅  | ✅         | 🟡 bucketed     |
 | `urgency`              | ✅  | ❌         | 🟡 scenario map |
-| `action(id, label)`    | ✅  | ✅         | ✅              |
+| `Action::button(id, label)`        | ✅  | ✅         | ✅              |
+| `Action::reply(…)`                 | 🟡 stretch | ✅  | ❌              |
+| `action.requires_authentication()` | ❌  | ✅         | ❌              |
 | `id`                   | ✅  | ✅ (string)| 🟡 (tag-based)  |
 | `sound`                | 🟡  | ✅         | ✅              |
 | `thread_id`            | ❌  | ✅         | ❌              |
 | `schedule_in`          | ❌  | ✅         | ❌              |
 | `suppress_popup`       | ❌  | ❌         | ✅              |
-| reply actions          | ❌  | ✅         | ❌              |
 | progress bar           | ❌  | ❌         | ✅ (stretch)    |
 
 #### `NotificationHandle`
@@ -241,7 +280,7 @@ the current XDG surface, this is where we expect to land. ✅ = supported,
 Net: **the handle API is fully unified across all three backends in 5.0.**
 The builder is not: `hint`, `urgency`, `appname`, and `auto_icon` stay
 XDG-exclusive because the underlying systems do not model them; `subtitle`,
-`thread_id`, `schedule_in`, and reply actions stay macOS-exclusive;
+`thread_id`, `schedule_in`, `Action::reply`, and `requires_authentication` stay macOS-exclusive (or macOS-primary);
 `hero_image`, `suppress_popup`, and progress stay Windows-exclusive. Those
 remain `cfg`-gated.
 
@@ -256,10 +295,11 @@ remain `cfg`-gated.
 5. Remove `wait_for_action(&str)`, `wait_for_action_response`, `on_close`,
    and the `"__closed"` sentinel.
 6. Land `response()` / `response_blocking()` on every handle.
-7. Remove the `Urgency` re-export on macOS and `show_debug`.
-8. Publish a 5.0-rc on crates.io alongside the final 4.18 so users have
+7. Migrate `Notification::action(id, label)` to `Notification::action(Action)` across all backends; expose `Action::reply` on macOS UN and (stretch) XDG.
+8. Remove the `Urgency` re-export on macOS and `show_debug`.
+9. Publish a 5.0-rc on crates.io alongside the final 4.18 so users have
    both as installable references.
-9. After at least one rc cycle with feedback, publish 5.0.
+10. After at least one rc cycle with feedback, publish 5.0.
 
 ---
 
@@ -307,3 +347,4 @@ These need a decision before work starts on 4.18:
 13. **Should the unified handle's `response()` consume `self`** (force
     one-shot, my recommendation, matches macOS UN today) or take `&self`
     (would require interior state and complicates Drop semantics)?
+14. **`Action` API in 4.18 preview.** The `pure_usernotifications` preview path in 4.18 wraps `mac-usernotifications` directly and can already expose the typed `Action` builder (`Action::button`, `Action::reply`, `requires_authentication`). Should it do so, even though the 4.18 default-cfg path still uses the old `action(id, label)` strings? This would give early adopters the target API a release early, but creates a temporary inconsistency between the preview and default paths.
