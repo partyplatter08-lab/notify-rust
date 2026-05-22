@@ -31,10 +31,17 @@
 mod nsusernotification;
 
 #[cfg(feature = "macos_legacy")]
-pub use nsusernotification::{schedule_notification, show_notification};
+pub use nsusernotification::{MacOsError, ApplicationError, NotificationError};
+#[cfg(feature = "macos_legacy")]
+pub(crate) use nsusernotification::{schedule_notification, show_notification};
 
 #[cfg(not(feature = "macos_legacy"))]
 mod usernotifications;
+#[cfg(not(feature = "macos_legacy"))]
+pub(crate) use usernotifications::{
+    schedule_notification, show_notification, show_notification_async,
+};
+#[cfg(not(feature = "macos_legacy"))]
 pub use usernotifications::{MacOsError, NotificationHandle};
 
 /// The default macOS backend: `UNUserNotificationCenter` (`mac-usernotifications`).

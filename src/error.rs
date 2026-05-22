@@ -7,7 +7,7 @@ use std::{fmt, num};
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(all(target_os = "macos", feature = "macos_legacy"))]
-pub use crate::macos::nsusernotification::{ApplicationError, MacOsError, NotificationError};
+pub use crate::macos::{ApplicationError, MacOsError, NotificationError};
 #[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
 pub use crate::macos::MacOsError;
 

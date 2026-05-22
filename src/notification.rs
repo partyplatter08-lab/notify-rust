@@ -465,7 +465,8 @@ impl Notification {
     /// then you can use `Notification::schedule()` instead, which accepts a `chrono::DateTime<T>`.
     #[cfg(target_os = "macos")]
     pub fn schedule_raw(&self, timestamp: f64) -> Result<NotificationHandle> {
-        macos::schedule_notification(self, timestamp)
+        let handle = macos::schedule_notification(self, timestamp);
+        handle
     }
 
     /// Sends Notification to D-Bus.
@@ -507,7 +508,8 @@ impl Notification {
     /// `NSUserNotificationCenter` path is used instead.
     #[cfg(target_os = "macos")]
     pub fn show(&self) -> Result<NotificationHandle> {
-        macos::show_notification(self)
+        let handle = macos::show_notification(self);
+        handle
     }
 
     /// Send a notification asynchronously via `UNUserNotificationCenter`.
