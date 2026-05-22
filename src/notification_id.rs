@@ -20,6 +20,7 @@
 pub enum NotificationId {
     /// XDG / D-Bus numeric identifier (Linux, BSD).
     Xdg(u32),
+
     /// macOS `UNNotificationRequest` string identifier.
     Mac(String),
 }

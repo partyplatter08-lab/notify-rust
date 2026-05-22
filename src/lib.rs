@@ -200,13 +200,12 @@ pub use crate::action::{
 
 #[cfg(all(target_os = "macos", feature = "macos_legacy"))]
 pub use mac_notification_sys::{get_bundle_identifier_or_default, set_application};
+
 #[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
-pub use macos::pure_usernotifications::{request_auth, request_auth_blocking};
+pub use macos::usernotifications::*;
 
 #[cfg(all(target_os = "macos", feature = "macos_legacy"))]
-pub use macos::legacy::NotificationHandle;
-#[cfg(all(target_os = "macos", not(feature = "macos_legacy")))]
-pub use macos::pure_usernotifications::NotificationHandle;
+pub use macos::nsusernotification::*;
 
 #[cfg(all(
     any(feature = "dbus", feature = "zbus"),
